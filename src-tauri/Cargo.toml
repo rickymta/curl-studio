@@ -1,0 +1,38 @@
+[package]
+name = "curlstudio"
+description = "CurlStudio desktop application (thin Tauri shell around curlstudio-core)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+default-run = "curlstudio"
+
+[lib]
+name = "curlstudio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "curlstudio-bridge"
+path = "src/bin/bridge.rs"
+required-features = ["dev-bridge"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+curlstudio-core.workspace = true
+serde_json.workspace = true
+tauri = { version = "2.12.5", features = [] }
+tauri-plugin-dialog = "2.8.4"
+tauri-plugin-opener = "2.5.5"
+tokio.workspace = true
+axum = { workspace = true, optional = true }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+# Debug-only HTTP bridge so the UI can run in a plain browser against the real backend.
+dev-bridge = ["dep:axum", "tokio/net"]
+
+[lints]
+workspace = true

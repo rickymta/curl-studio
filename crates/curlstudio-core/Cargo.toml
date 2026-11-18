@@ -1,0 +1,51 @@
+[package]
+name = "curlstudio-core"
+description = "Protocol clients, workspace store and load-test engine behind CurlStudio (UI-agnostic)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+base64.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+cookie_store.workspace = true
+dirs.workspace = true
+futures-util.workspace = true
+hdrhistogram.workspace = true
+hex.workspace = true
+hmac.workspace = true
+http.workspace = true
+md-5.workspace = true
+prost.workspace = true
+prost-types.workspace = true
+prost-reflect.workspace = true
+protox.workspace = true
+rand.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+reqwest_cookie_store.workspace = true
+rumqttc.workspace = true
+rustls.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_json_path.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tokio-tungstenite.workspace = true
+tonic.workspace = true
+tonic-reflection.workspace = true
+url.workspace = true
+uuid.workspace = true
+webpki-roots.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+axum.workspace = true
+
+[lints]
+workspace = true
