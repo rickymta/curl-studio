@@ -97,6 +97,21 @@ cargo test --workspace  # Rust unit + load-engine integration tests
 pnpm lint && npx tsc -b
 ```
 
+## Release
+
+GitHub Actions builds and publishes a release when a `vX.Y.Z` tag on the default branch is pushed
+(`.github/workflows/release.yml`): version check → full CI on Linux, macOS and Windows (`ci.yml`:
+lint, unit tests, build, `cargo fmt`, `clippy -D warnings`, `cargo test`) → draft release →
+installers for macOS (arm64 and x64 `.dmg`), Windows (`.msi`, setup `.exe`) and Linux (`.deb`,
+`.rpm`, `.AppImage`) → `SHA256SUMS.txt` → published. Code signing is optional (Apple and Windows
+secrets, as in GitStudio). Release notes come from the version's section in `CHANGELOG.md`.
+
+```bash
+pnpm release patch      # or minor | major | x.y.z — bumps the 3 version files, CHANGELOG, commit + tag
+git push origin master
+git push origin vX.Y.Z
+```
+
 Workspace data lives in the OS data dir (`%APPDATA%\CurlStudio` on Windows,
 `CURLSTUDIO_HOME` overrides it): `collections/*.json` (Postman v2.1), `environments/*.json`,
 `loadScenarios/`, `loadRuns/`, `globals.json`, `history.json`, `cookies.json`, `settings.json`.
