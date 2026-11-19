@@ -67,8 +67,13 @@ impl SseParser {
 }
 
 pub async fn connect(mut spec: RequestSpec) -> Result<String> {
-    if !spec.headers.iter().any(|h| h.key.eq_ignore_ascii_case("accept")) {
-        spec.headers.push(KeyValue::new("Accept", "text/event-stream"));
+    if !spec
+        .headers
+        .iter()
+        .any(|h| h.key.eq_ignore_ascii_case("accept"))
+    {
+        spec.headers
+            .push(KeyValue::new("Accept", "text/event-stream"));
     }
     let client = crate::http::build_client(&spec.options, None)?;
     let headers = crate::http::header_map(&spec.headers)?;
@@ -97,9 +102,9 @@ pub async fn connect(mut spec: RequestSpec) -> Result<String> {
         let headers: Vec<Value> = resp
             .headers()
             .iter()
-            .map(|(k, v)| {
-                json!({"key": k.as_str(), "value": String::from_utf8_lossy(v.as_bytes())})
-            })
+            .map(
+                |(k, v)| json!({"key": k.as_str(), "value": String::from_utf8_lossy(v.as_bytes())}),
+            )
             .collect();
         s.push(
             "info",

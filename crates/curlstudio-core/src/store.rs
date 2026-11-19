@@ -12,8 +12,14 @@ use serde_json::Value;
 
 use crate::error::{Error, Result};
 
-const KINDS: &[&str] =
-    &["collections", "environments", "loadScenarios", "loadRuns", "runnerRuns", "protos"];
+const KINDS: &[&str] = &[
+    "collections",
+    "environments",
+    "loadScenarios",
+    "loadRuns",
+    "runnerRuns",
+    "protos",
+];
 const DOCS: &[&str] = &["globals", "settings", "history", "cookies", "workspace"];
 
 static ROOT_OVERRIDE: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
@@ -30,13 +36,17 @@ pub fn root() -> PathBuf {
     if let Ok(p) = std::env::var("CURLSTUDIO_HOME") {
         return PathBuf::from(p);
     }
-    dirs::data_dir().unwrap_or_else(std::env::temp_dir).join("CurlStudio")
+    dirs::data_dir()
+        .unwrap_or_else(std::env::temp_dir)
+        .join("CurlStudio")
 }
 
 fn safe_id(id: &str) -> Result<&str> {
     if id.is_empty()
         || id.len() > 128
-        || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        || !id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
         return Err(Error::Invalid(format!("invalid id `{id}`")));
     }
@@ -80,15 +90,24 @@ fn strip(mut v: Value, omit: &[String]) -> Value {
 pub fn list(kind: &str, omit: &[String]) -> Result<Vec<Value>> {
     let dir = kind_dir(kind)?;
     let mut out = Vec::new();
-    let Ok(rd) = std::fs::read_dir(&dir) else { return Ok(out) };
+    let Ok(rd) = std::fs::read_dir(&dir) else {
+        return Ok(out);
+    };
     for e in rd.flatten() {
         let p = e.path();
         if p.extension().and_then(|x| x.to_str()) != Some("json") {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&p) else { continue };
-        let Ok(v) = serde_json::from_str::<Value>(&text) else { continue };
-        let id = p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+        let Ok(text) = std::fs::read_to_string(&p) else {
+            continue;
+        };
+        let Ok(v) = serde_json::from_str::<Value>(&text) else {
+            continue;
+        };
+        let id = p
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
         out.push(serde_json::json!({ "id": id, "doc": strip(v, omit) }));
     }
     Ok(out)
@@ -96,8 +115,7 @@ pub fn list(kind: &str, omit: &[String]) -> Result<Vec<Value>> {
 
 pub fn get(kind: &str, id: &str) -> Result<Value> {
     let p = kind_dir(kind)?.join(format!("{}.json", safe_id(id)?));
-    let text =
-        std::fs::read_to_string(&p).map_err(|_| Error::NotFound(format!("{kind}/{id}")))?;
+    let text = std::fs::read_to_string(&p).map_err(|_| Error::NotFound(format!("{kind}/{id}")))?;
     Ok(serde_json::from_str(&text)?)
 }
 
@@ -124,7 +142,10 @@ pub fn get_doc(name: &str) -> Result<Value> {
 }
 
 pub fn put_doc(name: &str, doc: &Value) -> Result<()> {
-    write_atomic(&doc_path(name)?, serde_json::to_string_pretty(doc)?.as_bytes())
+    write_atomic(
+        &doc_path(name)?,
+        serde_json::to_string_pretty(doc)?.as_bytes(),
+    )
 }
 
 #[cfg(test)]
@@ -135,7 +156,12 @@ mod tests {
     fn roundtrip() {
         let dir = tempfile::tempdir().unwrap();
         set_root(dir.path().to_path_buf());
-        put("collections", "abc", &serde_json::json!({"info": {"name": "x"}})).unwrap();
+        put(
+            "collections",
+            "abc",
+            &serde_json::json!({"info": {"name": "x"}}),
+        )
+        .unwrap();
         assert_eq!(get("collections", "abc").unwrap()["info"]["name"], "x");
         assert_eq!(list("collections", &[]).unwrap().len(), 1);
         delete("collections", "abc").unwrap();

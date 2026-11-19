@@ -8,6 +8,7 @@ import { aggregateCsv, htmlReport, junitXml, markdownSummary, timelineCsv } from
 import type { Point, RunRecord, Summary } from '@/lib/load/types';
 import { copyText, saveText } from '@/lib/native';
 import { slug } from '@/lib/format';
+import { logActivity } from '@/stores/activity';
 import { errText, toast } from '@/stores/ui';
 
 import { minP95, ReportBody, type ReportData } from './RunReport';
@@ -78,6 +79,16 @@ export function RunTab({ runId }: { runId: string }) {
     let stop = false;
     let timer: ReturnType<typeof setTimeout>;
     const done = (r: RunRecord) => {
+      if (useRuns.getState().runs.find((x) => x.id === runId) === undefined || useRuns.getState().live.includes(runId)) {
+        const s = r.summary;
+        logActivity({
+          cat: 'load',
+          label: `Load test ${s.verdict === 'passed' ? 'passed' : 'failed'}: ${r.name}`,
+          status: s.verdict === 'passed' ? 'finished' : 'failed',
+          ms: Math.round(s.durationS * 1000),
+          detail: `${s.requests ?? ''} requests${r.reason ? ` · ${r.reason}` : ''}`,
+        });
+      }
       setRun(r);
       setNotes(r.meta?.notes ?? '');
       setLive(null);

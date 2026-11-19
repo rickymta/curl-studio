@@ -1,0 +1,187 @@
+{
+  "info": {
+    "_postman_id": "5d6f0b6e-6a2a-4c58-9d0b-curlstudio-mock",
+    "name": "CurlStudio Mock API",
+    "description": "End-to-end test collection for the docker mock services (testing/mock).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "event": [
+    { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.variables.set('requestedAt', Date.now());"] } }
+  ],
+  "variable": [
+    { "key": "productId", "value": "1" },
+    { "key": "pageSize", "value": "2" }
+  ],
+  "item": [
+    {
+      "name": "0. Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('has token', () => pm.expect(j.token).to.be.a('string'));",
+                  "pm.environment.set('token', j.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Me",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('authorized', () => pm.response.to.have.status(200));", "pm.test('is demo', () => pm.expect(pm.response.json().username).to.eql('demo'));"] } }
+          ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/me", "host": ["{{baseUrl}}"], "path": ["me"] } }
+        },
+        {
+          "name": "API key (header)",
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "key", "value": "x-api-key" }, { "key": "value", "value": "{{apiKey}}" }, { "key": "in", "value": "header" }] },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/apikey", "host": ["{{baseUrl}}"], "path": ["apikey"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Products",
+      "item": [
+        {
+          "name": "List products",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', () => pm.response.to.have.status(200));", "pm.test('page size', () => pm.expect(pm.response.json().items.length).to.be.at.most(Number(pm.variables.get('pageSize'))));"] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products?limit={{pageSize}}&q=",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [{ "key": "limit", "value": "{{pageSize}}" }, { "key": "q", "value": "", "description": "name filter" }]
+            }
+          }
+        },
+        {
+          "name": "Get product",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/products/:id", "host": ["{{baseUrl}}"], "path": ["products", ":id"], "variable": [{ "key": "id", "value": "{{productId}}" }] }
+          }
+        },
+        {
+          "name": "Create product",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('created', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('productId', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Webcam {{$randomInt}}\",\n  \"price\": 39.9,\n  \"stock\": 3\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+          }
+        },
+        {
+          "name": "Create product (invalid → 422)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "raw", "raw": "{ \"name\": \"\", \"price\": -1 }", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+          }
+        },
+        {
+          "name": "Patch product",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": { "mode": "raw", "raw": "{ \"stock\": 99 }", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["products", "{{productId}}"] }
+          }
+        },
+        {
+          "name": "Delete product",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{baseUrl}}/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["products", "{{productId}}"] } }
+        }
+      ]
+    },
+    {
+      "name": "2. Bodies & formats",
+      "item": [
+        {
+          "name": "Form urlencoded",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "urlencoded", "urlencoded": [{ "key": "a", "value": "1" }, { "key": "b", "value": "xin chào" }] },
+            "url": { "raw": "{{baseUrl}}/echo", "host": ["{{baseUrl}}"], "path": ["echo"] }
+          }
+        },
+        {
+          "name": "Multipart form",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "formdata", "formdata": [{ "key": "field", "value": "value", "type": "text" }] },
+            "url": { "raw": "{{baseUrl}}/echo", "host": ["{{baseUrl}}"], "path": ["echo"] }
+          }
+        },
+        { "name": "HTML preview", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{baseUrl}}/html" } },
+        { "name": "XML", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{baseUrl}}/xml" } },
+        { "name": "Unicode", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{baseUrl}}/unicode" } },
+        { "name": "Big JSON (20k rows)", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{baseUrl}}/big?n=20000" } },
+        {
+          "name": "GraphQL products",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "graphql", "graphql": { "query": "query ($n: Int) {\n  products(limit: $n) { id name price }\n  hello(name: \"CurlStudio\")\n}", "variables": "{ \"n\": 2 }" } },
+            "url": "{{baseUrl}}/graphql"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. httpbin",
+      "item": [
+        { "name": "Basic auth", "request": { "auth": { "type": "basic", "basic": [{ "key": "username", "value": "user" }, { "key": "password", "value": "pass" }] }, "method": "GET", "header": [], "url": "{{httpbin}}/basic-auth/user/pass" } },
+        {
+          "name": "Digest auth",
+          "request": {
+            "auth": { "type": "digest", "digest": [{ "key": "username", "value": "user" }, { "key": "password", "value": "pass" }, { "key": "algorithm", "value": "MD5" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{httpbin}}/digest-auth/auth/user/pass/MD5"
+          }
+        },
+        { "name": "Gzip", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{httpbin}}/gzip" } },
+        { "name": "Redirect x3", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{httpbin}}/redirect/3" } },
+        { "name": "Set cookie", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{httpbin}}/cookies/set?flavour=choco" } },
+        { "name": "Status 503", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{httpbin}}/status/503" } },
+        { "name": "Image", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{httpbin}}/image/png" } },
+        { "name": "Delay 3s", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": "{{httpbin}}/delay/3" } }
+      ]
+    }
+  ]
+}

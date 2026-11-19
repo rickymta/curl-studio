@@ -58,7 +58,12 @@ fn runs() -> &'static Mutex<HashMap<String, Arc<Run>>> {
 }
 
 pub fn get(id: &str) -> Result<Arc<Run>> {
-    runs().lock().unwrap().get(id).cloned().ok_or_else(|| Error::NotFound(format!("run {id}")))
+    runs()
+        .lock()
+        .unwrap()
+        .get(id)
+        .cloned()
+        .ok_or_else(|| Error::NotFound(format!("run {id}")))
 }
 
 pub fn active() -> Vec<Value> {
@@ -93,24 +98,37 @@ pub fn validate(sc: &Scenario) -> Result<()> {
         return Err(Error::Invalid("the scenario has no enabled request".into()));
     }
     match &sc.profile {
-        Profile::RampingVus { stages, start_vus, .. } => {
+        Profile::RampingVus {
+            stages, start_vus, ..
+        } => {
             if stages.is_empty() {
                 return Err(Error::Invalid("add at least one stage".into()));
             }
-            let peak = stages.iter().map(|s| s.target).fold(*start_vus as f64, f64::max);
+            let peak = stages
+                .iter()
+                .map(|s| s.target)
+                .fold(*start_vus as f64, f64::max);
             if peak > 20_000.0 {
-                return Err(Error::Invalid("more than 20,000 VUs is not supported".into()));
+                return Err(Error::Invalid(
+                    "more than 20,000 VUs is not supported".into(),
+                ));
             }
         }
-        Profile::ArrivalRate { stages, max_vus, .. } => {
+        Profile::ArrivalRate {
+            stages, max_vus, ..
+        } => {
             if stages.is_empty() {
                 return Err(Error::Invalid("add at least one stage".into()));
             }
             if *max_vus == 0 || *max_vus > 20_000 {
-                return Err(Error::Invalid("max VUs must be between 1 and 20,000".into()));
+                return Err(Error::Invalid(
+                    "max VUs must be between 1 and 20,000".into(),
+                ));
             }
         }
-        Profile::Iterations { vus, iterations, .. } => {
+        Profile::Iterations {
+            vus, iterations, ..
+        } => {
             if *vus == 0 || *iterations == 0 {
                 return Err(Error::Invalid("VUs and iterations must be positive".into()));
             }
@@ -131,7 +149,16 @@ pub fn start(scenario: Scenario, meta: Value) -> Result<String> {
     let names = scenario
         .steps
         .iter()
-        .map(|s| (s.id.clone(), (s.name.clone(), s.request.method.clone(), s.request.url.clone())))
+        .map(|s| {
+            (
+                s.id.clone(),
+                (
+                    s.name.clone(),
+                    s.request.method.clone(),
+                    s.request.url.clone(),
+                ),
+            )
+        })
         .collect();
     let run = Arc::new(Run {
         id: id.clone(),
@@ -156,7 +183,10 @@ pub fn start(scenario: Scenario, meta: Value) -> Result<String> {
 
 pub fn stop(id: &str, hard: bool) -> Result<()> {
     let r = get(id)?;
-    r.reason.lock().unwrap().get_or_insert_with(|| "Stopped by user".into());
+    r.reason
+        .lock()
+        .unwrap()
+        .get_or_insert_with(|| "Stopped by user".into());
     r.stopping.store(true, Ordering::SeqCst);
     if hard {
         r.killed.store(true, Ordering::SeqCst);
@@ -179,7 +209,11 @@ impl Vu {
             vars.insert(kv.key.clone(), kv.value.clone());
         }
         vars.insert("__VU".into(), n.to_string());
-        Self { n, client: None, vars }
+        Self {
+            n,
+            client: None,
+            vars,
+        }
     }
 
     fn client(&mut self, run: &Run) -> Result<reqwest::Client> {
@@ -266,11 +300,19 @@ async fn iteration(vu: &mut Vu, run: &Run, iter_no: u64) -> bool {
                 let headers: Vec<(String, String)> = raw
                     .headers
                     .iter()
-                    .map(|(k, v)| (k.as_str().to_string(), String::from_utf8_lossy(v.as_bytes()).to_string()))
+                    .map(|(k, v)| {
+                        (
+                            k.as_str().to_string(),
+                            String::from_utf8_lossy(v.as_bytes()).to_string(),
+                        )
+                    })
                     .collect();
                 let body = String::from_utf8_lossy(&raw.body);
                 let duration = raw.timings.total_ms;
-                let hdr_bytes: u64 = headers.iter().map(|(k, v)| (k.len() + v.len() + 4) as u64).sum();
+                let hdr_bytes: u64 = headers
+                    .iter()
+                    .map(|(k, v)| (k.len() + v.len() + 4) as u64)
+                    .sum();
                 let obs = Observed::new(raw.status, duration, raw.size, &headers, &body);
                 let mut all_ok = true;
                 let mut check_results = Vec::new();
@@ -291,7 +333,12 @@ async fn iteration(vu: &mut Vu, run: &Run, iter_no: u64) -> bool {
                 } else if failed {
                     Some(format!(
                         "check failed: {}",
-                        check_results.iter().filter(|c| !c.1).map(|c| c.0.as_str()).collect::<Vec<_>>().join(", ")
+                        check_results
+                            .iter()
+                            .filter(|c| !c.1)
+                            .map(|c| c.0.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     ))
                 } else {
                     None
@@ -346,9 +393,16 @@ async fn iteration(vu: &mut Vu, run: &Run, iter_no: u64) -> bool {
     if run.scenario.options.new_connection_per_iteration {
         vu.client = None;
     }
-    let (lo, hi) = (run.scenario.options.think_min_ms, run.scenario.options.think_max_ms);
+    let (lo, hi) = (
+        run.scenario.options.think_min_ms,
+        run.scenario.options.think_max_ms,
+    );
     if hi > 0 {
-        let ms = if hi > lo { rand::rng().random_range(lo..=hi) } else { hi };
+        let ms = if hi > lo {
+            rand::rng().random_range(lo..=hi)
+        } else {
+            hi
+        };
         if !sleep_or_kill(run, ms).await {
             return false;
         }
@@ -433,13 +487,17 @@ async fn controller(run: Arc<Run>) {
     };
 
     match &run.scenario.profile {
-        Profile::ArrivalRate { pre_allocated_vus, .. } => {
+        Profile::ArrivalRate {
+            pre_allocated_vus, ..
+        } => {
             for _ in 0..*pre_allocated_vus {
                 spawn_worker(next_vu, &mut workers);
                 next_vu += 1;
             }
         }
-        Profile::Iterations { vus, iterations, .. } => {
+        Profile::Iterations {
+            vus, iterations, ..
+        } => {
             for _ in 0..*vus {
                 let run = run.clone();
                 let counter = shared_counter.clone();
@@ -471,9 +529,12 @@ async fn controller(run: Arc<Run>) {
         let sec = run.sec();
         let stopping = run.stopping.load(Ordering::Relaxed);
         match &run.scenario.profile {
-            Profile::RampingVus { start_vus, stages, .. } => {
+            Profile::RampingVus {
+                start_vus, stages, ..
+            } => {
                 if !stopping {
-                    let target = stage_value(*start_vus as f64, stages, t).round().max(0.0) as usize;
+                    let target =
+                        stage_value(*start_vus as f64, stages, t).round().max(0.0) as usize;
                     looping.retain(|l| !l.handle.is_finished());
                     while looping.len() < target {
                         looping.push(spawn_looping(run.clone(), next_vu, live.clone()));
@@ -498,7 +559,8 @@ async fn controller(run: Arc<Run>) {
             } => {
                 if !stopping {
                     let unit = time_unit_s.max(0.001);
-                    let due = (stage_integral(*start_rate, stages, t.min(planned)) / unit).floor() as u64;
+                    let due =
+                        (stage_integral(*start_rate, stages, t.min(planned)) / unit).floor() as u64;
                     let mut dropped = 0;
                     while started_iters < due {
                         if idle.load(Ordering::SeqCst) == 0 {
@@ -525,7 +587,10 @@ async fn controller(run: Arc<Run>) {
             Profile::Iterations { max_duration_s, .. } => {
                 if t >= *max_duration_s as f64 {
                     run.stopping.store(true, Ordering::SeqCst);
-                    run.reason.lock().unwrap().get_or_insert_with(|| "Max duration reached".into());
+                    run.reason
+                        .lock()
+                        .unwrap()
+                        .get_or_insert_with(|| "Max duration reached".into());
                 }
             }
         }
@@ -549,7 +614,8 @@ async fn controller(run: Arc<Run>) {
             if !ths.is_empty() {
                 let s = run.summary();
                 if let Some(bad) = thresholds::first_failure(&s, &ths) {
-                    *run.reason.lock().unwrap() = Some(format!("Aborted: threshold `{bad}` failed"));
+                    *run.reason.lock().unwrap() =
+                        Some(format!("Aborted: threshold `{bad}` failed"));
                     run.stopping.store(true, Ordering::SeqCst);
                 }
             }
@@ -574,13 +640,19 @@ async fn controller(run: Arc<Run>) {
         l.stop.store(true, Ordering::SeqCst);
     }
     let grace = match &run.scenario.profile {
-        Profile::RampingVus { graceful_stop_s, .. } | Profile::ArrivalRate { graceful_stop_s, .. } => {
-            *graceful_stop_s
+        Profile::RampingVus {
+            graceful_stop_s, ..
         }
+        | Profile::ArrivalRate {
+            graceful_stop_s, ..
+        } => *graceful_stop_s,
         Profile::Iterations { .. } => 30,
     };
     let deadline = Instant::now() + Duration::from_secs(grace);
-    while live.load(Ordering::SeqCst) > 0 && Instant::now() < deadline && !run.killed.load(Ordering::Relaxed) {
+    while live.load(Ordering::SeqCst) > 0
+        && Instant::now() < deadline
+        && !run.killed.load(Ordering::Relaxed)
+    {
         tokio::time::sleep(Duration::from_millis(100)).await;
         let sec = run.sec();
         let vus = live.load(Ordering::SeqCst);
@@ -601,7 +673,11 @@ async fn controller(run: Arc<Run>) {
     run.metrics.lock().unwrap().flush(end_sec.max(1), 0);
     let summary = run.summary();
     let aborted = run.reason.lock().unwrap().clone();
-    let state = if aborted.as_deref().map(|r| r.starts_with("Aborted")).unwrap_or(false) {
+    let state = if aborted
+        .as_deref()
+        .map(|r| r.starts_with("Aborted"))
+        .unwrap_or(false)
+    {
         "aborted"
     } else {
         "finished"
@@ -655,17 +731,21 @@ pub fn status(id: &str, since: Option<u64>) -> Result<Value> {
 /// Run one iteration with a single VU and report what each step did (scenario debugger).
 pub async fn debug(scenario: Scenario) -> Result<Value> {
     crate::http::init_tls();
-    let mut vars: HashMap<String, String> =
-        scenario.variables.iter().map(|kv| (kv.key.clone(), kv.value.clone())).collect();
-    if let Some(ds) = &scenario.data {
-        if let Some(row) = ds.rows.first() {
-            vars.extend(row.clone());
-        }
+    let mut vars: HashMap<String, String> = scenario
+        .variables
+        .iter()
+        .map(|kv| (kv.key.clone(), kv.value.clone()))
+        .collect();
+    if let Some(ds) = &scenario.data
+        && let Some(row) = ds.rows.first()
+    {
+        vars.extend(row.clone());
     }
     vars.insert("__VU".into(), "1".into());
     vars.insert("__ITER".into(), "0".into());
     let o = request_options(&scenario);
-    let client = crate::http::build_client(&o, o.cookies.then(|| Arc::new(CookieStoreMutex::default())))?;
+    let client =
+        crate::http::build_client(&o, o.cookies.then(|| Arc::new(CookieStoreMutex::default())))?;
     let mut out = Vec::new();
     for step in scenario.steps.iter().filter(|s| s.enabled) {
         let mut spec = vars::resolve_request(&step.request, &vars);
@@ -679,10 +759,16 @@ pub async fn debug(scenario: Scenario) -> Result<Value> {
                 let headers: Vec<(String, String)> = raw
                     .headers
                     .iter()
-                    .map(|(k, v)| (k.as_str().to_string(), String::from_utf8_lossy(v.as_bytes()).to_string()))
+                    .map(|(k, v)| {
+                        (
+                            k.as_str().to_string(),
+                            String::from_utf8_lossy(v.as_bytes()).to_string(),
+                        )
+                    })
                     .collect();
                 let body = String::from_utf8_lossy(&raw.body).to_string();
-                let obs = Observed::new(raw.status, raw.timings.total_ms, raw.size, &headers, &body);
+                let obs =
+                    Observed::new(raw.status, raw.timings.total_ms, raw.size, &headers, &body);
                 let checks: Vec<Value> = step
                     .checks
                     .iter()

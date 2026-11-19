@@ -114,12 +114,13 @@ export function LineChart({
         bottom: s.values.map((_, i) => series.slice(0, si).reduce((a, t) => a + (t.values[i] ?? 0), 0)),
       }))
     : series.map((s) => ({ ...s, top: s.values, bottom: s.values.map(() => 0) }));
-  const maxV = Math.max(
-    yMax ?? 0,
-    ...drawn.flatMap((s) => s.top.filter((v): v is number => v !== null && Number.isFinite(v))),
-    ...refLines.map((r) => r.value),
-    0,
-  );
+  const dataMax = Math.max(yMax ?? 0, ...drawn.flatMap((s) => s.top.filter((v): v is number => v !== null && Number.isFinite(v))), 0);
+  // A reference line far above the data (e.g. p95 < 1000 ms vs 3 ms actual) would squash every
+  // series onto the baseline; keep it on the scale only when it is near the data, otherwise
+  // mention it as an off-scale note.
+  const onScale = refLines.filter((r) => !dataMax || r.value <= dataMax * 3);
+  const offScale = refLines.filter((r) => !onScale.includes(r));
+  const maxV = Math.max(dataMax, ...onScale.map((r) => r.value), 0);
   const ticks = niceTicks(maxV || 1);
   const top = ticks[ticks.length - 1]!;
   const w = width;
@@ -197,7 +198,12 @@ export function LineChart({
         {drawn.map((s) => (
           <path key={s.name} d={path(s.top)} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" strokeDasharray={s.dashed ? '4 3' : undefined} />
         ))}
-        {refLines.map((r) => (
+        {offScale.map((r, i) => (
+          <text key={`off-${r.label}`} x={w - PAD.r - 2} y={PAD.t + 10 + i * 13} textAnchor="end" style={{ fill: r.color ?? 'var(--danger)' }}>
+            ▲ {r.label} (above the chart)
+          </text>
+        ))}
+        {onScale.map((r) => (
           <g key={r.label}>
             <line x1={PAD.l} x2={w - PAD.r} y1={sy(r.value)} y2={sy(r.value)} stroke={r.color ?? 'var(--danger)'} strokeDasharray="5 4" strokeWidth={1.5} />
             <text x={w - PAD.r - 2} y={sy(r.value) - 4} textAnchor="end" style={{ fill: r.color ?? 'var(--danger)' }}>
@@ -297,16 +303,14 @@ export function Histogram({
             {`${Math.round(lo + f * (hi - lo))} ms`}
           </text>
         ))}
-        {markers
-          .filter((m) => m.value >= lo && m.value <= hi)
-          .map((m, i) => (
-            <g key={m.label}>
-              <line x1={sx(m.value)} x2={sx(m.value)} y1={PAD.t} y2={PAD.t + ih} stroke="var(--foreground)" strokeDasharray="3 3" opacity={0.7} />
-              <text x={sx(m.value) + 3} y={PAD.t + 10 + i * 12} style={{ fill: 'var(--foreground)' }}>
-                {m.label}
-              </text>
-            </g>
-          ))}
+        {placeLabels(markers.filter((m) => m.value >= lo && m.value <= hi).map((m) => ({ ...m, x: sx(m.value) })), w - PAD.r).map((m) => (
+          <g key={m.label}>
+            <line x1={m.x} x2={m.x} y1={PAD.t} y2={PAD.t + ih} stroke="var(--foreground)" strokeDasharray="3 3" opacity={0.7} />
+            <text x={m.lx} y={PAD.t + 10 + m.row * 13} textAnchor={m.anchor} style={{ fill: 'var(--foreground)', paintOrder: 'stroke', stroke: 'var(--surface)', strokeWidth: 3, strokeLinejoin: 'round' }}>
+              {m.label}
+            </text>
+          </g>
+        ))}
       </svg>
     </div>
   );
@@ -403,16 +407,47 @@ export function Heatmap({
 }
 
 /** Horizontal bars with labels and values (comparisons across steps, status codes). */
+/**
+ * Put marker labels (p50/p95/p99) on rows so none overlap: each label goes on the first row
+ * whose previous label ends before it starts; labels near the right edge flip to the left.
+ */
+export function placeLabels<T extends { x: number; label: string }>(items: T[], right: number, charW = 6.2) {
+  const rows: number[] = [];
+  return [...items]
+    .sort((a, b) => a.x - b.x)
+    .map((m) => {
+      const width = m.label.length * charW + 6;
+      const flip = m.x + 3 + width > right;
+      const start = flip ? m.x - 3 - width : m.x + 3;
+      let row = rows.findIndex((end) => end < start);
+      if (row < 0) row = rows.length;
+      rows[row] = start + width;
+      return { ...m, row, lx: flip ? m.x - 3 : m.x + 3, anchor: (flip ? 'end' : 'start') as 'end' | 'start' };
+    });
+}
+
 export function HBars({
   items,
   format = fmtCompact,
   color = 'var(--series-1)',
+  scale = 'linear',
 }: {
   items: { label: string; value: number; color?: string; hint?: string }[];
   format?: (v: number) => string;
   color?: string;
+  /** `log` keeps small values readable next to one very large value. */
+  scale?: 'linear' | 'log';
 }) {
   const max = Math.max(...items.map((i) => i.value), 1e-9);
+  const lmin = Math.log10(Math.max(Math.min(...items.map((i) => i.value).filter((v) => v > 0), max), 1e-9));
+  const frac = (v: number) => {
+    if (scale === 'linear') return v / max;
+    if (v <= 0) return 0;
+    const lmax = Math.log10(max);
+    // Map [min/2, max] onto the bar, so the smallest value still shows a bar.
+    const lo = lmin - 0.3;
+    return lmax === lo ? 1 : (Math.log10(v) - lo) / (lmax - lo);
+  };
   return (
     <div className="space-y-1.5">
       {items.map((it) => (
@@ -421,7 +456,7 @@ export function HBars({
             {it.label}
           </span>
           <div className="relative h-3.5 flex-1">
-            <div className="absolute inset-y-0 left-0 rounded-r" style={{ width: `${Math.max(0.5, (it.value / max) * 100)}%`, background: it.color ?? color }} />
+            <div className="absolute inset-y-0 left-0 rounded-r" style={{ width: `${Math.max(0.5, frac(it.value) * 100)}%`, background: it.color ?? color }} />
           </div>
           <span className="w-20 shrink-0 text-right font-mono">{format(it.value)}</span>
         </div>

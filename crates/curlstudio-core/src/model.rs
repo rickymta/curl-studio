@@ -16,7 +16,10 @@ pub struct KeyValue {
 
 impl KeyValue {
     pub fn new(k: impl Into<String>, v: impl Into<String>) -> Self {
-        Self { key: k.into(), value: v.into() }
+        Self {
+            key: k.into(),
+            value: v.into(),
+        }
     }
 }
 

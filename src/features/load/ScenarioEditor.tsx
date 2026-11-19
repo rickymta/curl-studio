@@ -76,7 +76,7 @@ function RuleRow({ r, onChange, onRemove }: { r: Rule; onChange: (r: Rule) => vo
 function ExtractRow({ e, onChange, onRemove }: { e: Extractor; onChange: (e: Extractor) => void; onRemove: () => void }) {
   return (
     <div className="flex items-center gap-1.5">
-      <Input value={e.var} onChange={(ev) => onChange({ ...e, var: ev.target.value })} placeholder="variable" className="h-7 w-32 font-mono text-[12px]" />
+      <Input value={e.var} onChange={(ev) => onChange({ ...e, var: ev.target.value })} placeholder="variable" className="h-7 shrink-0 font-mono text-[12px]" style={{ width: 128 }} />
       <span className="text-muted-foreground">←</span>
       <Select
         value={e.source}
@@ -92,7 +92,7 @@ function ExtractRow({ e, onChange, onRemove }: { e: Extractor; onChange: (e: Ext
         className="h-7 w-32 text-[12px]"
       />
       {!['status', 'body'].includes(e.source) && <Input value={e.path ?? ''} onChange={(ev) => onChange({ ...e, path: ev.target.value })} placeholder="$.token" className="h-7 min-w-0 flex-1 font-mono text-[12px]" />}
-      <Input value={e.default ?? ''} onChange={(ev) => onChange({ ...e, default: ev.target.value })} placeholder="default" className="h-7 w-24 text-[12px]" />
+      <Input value={e.default ?? ''} onChange={(ev) => onChange({ ...e, default: ev.target.value })} placeholder="default" className="h-7 shrink-0 text-[12px]" style={{ width: 96 }} />
       <IconButton label="Remove" onClick={onRemove}>
         <X className="size-3.5" />
       </IconButton>
@@ -449,7 +449,7 @@ export function ScenarioEditor({ scenarioId }: { scenarioId: string }) {
           <Play className="size-4" /> Run test
         </Button>
       </div>
-      <div className="shrink-0 px-4 pt-1 text-[11.5px] text-muted-foreground">{PRESETS.find((p) => p.id === doc.testType)?.description}</div>
+      <div className="shrink-0 px-4 pt-1 text-[11.5px] text-muted-foreground">{PRESETS.find((p) => p.id === doc.testType)?.description ?? 'Custom load profile — edit the executor and stages under Load profile.'}</div>
       <Tabs
         value={section}
         onChange={setSection}

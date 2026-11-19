@@ -27,7 +27,8 @@ pub fn init_tls() {
 
 pub fn cookie_jar() -> Arc<CookieStoreMutex> {
     static JAR: OnceLock<Arc<CookieStoreMutex>> = OnceLock::new();
-    JAR.get_or_init(|| Arc::new(CookieStoreMutex::new(crate::cookies::load()))).clone()
+    JAR.get_or_init(|| Arc::new(CookieStoreMutex::new(crate::cookies::load())))
+        .clone()
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -72,12 +73,29 @@ pub fn build_client(o: &RequestOptions, jar: Option<Arc<CookieStoreMutex>>) -> R
     match o.proxy.trim() {
         "" => {}
         "none" => b = b.no_proxy(),
-        p => b = b.proxy(reqwest::Proxy::all(p).map_err(|e| Error::Invalid(format!("proxy: {e}")))?),
+        p => {
+            b = b.proxy(reqwest::Proxy::all(p).map_err(|e| Error::Invalid(format!("proxy: {e}")))?)
+        }
     }
     if let Some(j) = jar {
         b = b.cookie_provider(j);
     }
+    b = prefer_ipv4_localhost(b);
     b.build().map_err(|e| Error::Invalid(describe(&e)))
+}
+
+/// `localhost` resolves to ::1 first on Windows; a refused connection there is retried by the OS
+/// before IPv4 is tried, so an unreachable local port took 2–4 s to report. Resolve it IPv4-first
+/// (both families stay, and hyper's happy-eyeballs races them) so failures come back sooner.
+fn prefer_ipv4_localhost(b: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+    use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+    b.resolve_to_addrs(
+        "localhost",
+        &[
+            SocketAddr::from((Ipv4Addr::LOCALHOST, 0)),
+            SocketAddr::from((Ipv6Addr::LOCALHOST, 0)),
+        ],
+    )
 }
 
 /// Shared client for interactive requests (keeps connections warm across sends).
@@ -105,7 +123,8 @@ pub async fn prepare_body(body: &Body) -> Result<Prepared> {
         Body::None => Prepared::Bytes(None),
         Body::Raw { raw } => Prepared::Bytes(Some(Bytes::from(raw.clone()))),
         Body::Base64 { data } => Prepared::Bytes(Some(Bytes::from(
-            B64.decode(data.trim()).map_err(|e| Error::Invalid(format!("base64 body: {e}")))?,
+            B64.decode(data.trim())
+                .map_err(|e| Error::Invalid(format!("base64 body: {e}")))?,
         ))),
         Body::Urlencoded { fields } => {
             let mut s = url::form_urlencoded::Serializer::new(String::new());
@@ -227,7 +246,14 @@ async fn send_once(
         Prepared::Bytes(b) => b.clone(),
         Prepared::Multipart(..) => None,
     };
-    if let Auth::Awsv4 { access_key, secret_key, region, service, session_token } = &spec.auth {
+    if let Auth::Awsv4 {
+        access_key,
+        secret_key,
+        region,
+        service,
+        session_token,
+    } = &spec.auth
+    {
         let signed = auth::aws_sigv4(
             &auth::AwsCreds {
                 access_key,
@@ -243,23 +269,31 @@ async fn send_once(
             chrono::Utc::now(),
         );
         for (k, v) in signed {
-            if let (Ok(n), Ok(v)) = (HeaderName::from_bytes(k.as_bytes()), HeaderValue::from_str(&v))
-            {
+            if let (Ok(n), Ok(v)) = (
+                HeaderName::from_bytes(k.as_bytes()),
+                HeaderValue::from_str(&v),
+            ) {
                 headers.insert(n, v);
             }
         }
     }
-    if let Some((k, v)) = extra {
-        if let (Ok(n), Ok(v)) = (HeaderName::from_bytes(k.as_bytes()), HeaderValue::from_str(&v)) {
-            headers.insert(n, v);
-        }
+    if let Some((k, v)) = extra
+        && let (Ok(n), Ok(v)) = (
+            HeaderName::from_bytes(k.as_bytes()),
+            HeaderValue::from_str(&v),
+        )
+    {
+        headers.insert(n, v);
     }
     let sent_headers: Vec<KeyValue> = headers
         .iter()
         .map(|(k, v)| KeyValue::new(k.as_str(), String::from_utf8_lossy(v.as_bytes())))
         .collect();
     let mut sent_bytes = body_bytes.as_ref().map(|b| b.len() as u64).unwrap_or(0)
-        + sent_headers.iter().map(|h| (h.key.len() + h.value.len() + 4) as u64).sum::<u64>()
+        + sent_headers
+            .iter()
+            .map(|h| (h.key.len() + h.value.len() + 4) as u64)
+            .sum::<u64>()
         + (method.as_str().len() + url.as_str().len() + 12) as u64;
 
     let mut rb = client
@@ -328,37 +362,37 @@ async fn send_once(
 /// Send with auth handling (digest needs a second round trip).
 pub async fn execute(client: &Client, spec: &RequestSpec) -> Result<Raw> {
     let first = send_once(client, spec, None).await?;
-    if let Auth::Digest { username, password } = &spec.auth {
-        if first.status == 401 {
-            let challenge = first
-                .headers
-                .get_all(reqwest::header::WWW_AUTHENTICATE)
-                .iter()
-                .filter_map(|v| v.to_str().ok())
-                .find(|v| v.trim_start().to_ascii_lowercase().starts_with("digest"));
-            if let Some(ch) = challenge {
-                let url = url::Url::parse(&spec.url).map_err(|e| Error::Invalid(e.to_string()))?;
-                let uri = match url.query() {
-                    Some(q) => format!("{}?{}", url.path(), q),
-                    None => url.path().to_string(),
-                };
-                let body = match &spec.body {
-                    Body::Raw { raw } => raw.as_bytes().to_vec(),
-                    _ => Vec::new(),
-                };
-                let header = auth::digest_header(
-                    ch,
-                    username,
-                    password,
-                    &spec.method.to_ascii_uppercase(),
-                    &uri,
-                    &body,
-                )?;
-                let mut second =
-                    send_once(client, spec, Some(("authorization".into(), header))).await?;
-                second.timings.total_ms += first.timings.total_ms;
-                return Ok(second);
-            }
+    if let Auth::Digest { username, password } = &spec.auth
+        && first.status == 401
+    {
+        let challenge = first
+            .headers
+            .get_all(reqwest::header::WWW_AUTHENTICATE)
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .find(|v| v.trim_start().to_ascii_lowercase().starts_with("digest"));
+        if let Some(ch) = challenge {
+            let url = url::Url::parse(&spec.url).map_err(|e| Error::Invalid(e.to_string()))?;
+            let uri = match url.query() {
+                Some(q) => format!("{}?{}", url.path(), q),
+                None => url.path().to_string(),
+            };
+            let body = match &spec.body {
+                Body::Raw { raw } => raw.as_bytes().to_vec(),
+                _ => Vec::new(),
+            };
+            let header = auth::digest_header(
+                ch,
+                username,
+                password,
+                &spec.method.to_ascii_uppercase(),
+                &uri,
+                &body,
+            )?;
+            let mut second =
+                send_once(client, spec, Some(("authorization".into(), header))).await?;
+            second.timings.total_ms += first.timings.total_ms;
+            return Ok(second);
         }
     }
     Ok(first)
@@ -410,7 +444,10 @@ pub fn to_response(raw: Raw) -> ResponseData {
         .iter()
         .map(|(k, v)| KeyValue::new(k.as_str(), String::from_utf8_lossy(v.as_bytes())))
         .collect();
-    let headers_size = headers.iter().map(|h| (h.key.len() + h.value.len() + 4) as u64).sum();
+    let headers_size = headers
+        .iter()
+        .map(|h| (h.key.len() + h.value.len() + 4) as u64)
+        .sum();
     ResponseData {
         status: raw.status,
         status_text: raw.status_text,
@@ -440,7 +477,10 @@ pub async fn send(id: Option<String>, spec: RequestSpec) -> Result<ResponseData>
     let client = shared_client(&spec.options)?;
     let task = tokio::spawn(async move { execute(&client, &spec).await.map(to_response) });
     if let Some(id) = &id {
-        inflight().lock().unwrap().insert(id.clone(), task.abort_handle());
+        inflight()
+            .lock()
+            .unwrap()
+            .insert(id.clone(), task.abort_handle());
     }
     let out = task.await;
     if let Some(id) = &id {

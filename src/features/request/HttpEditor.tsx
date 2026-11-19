@@ -11,6 +11,7 @@ import { api } from '@/lib/ipc';
 import { clone, makeUrl, METHODS, methodColor, parseQuery, pathVariables, scriptOf, setScript, uid, urlRaw, withQuery } from '@/lib/postman';
 import type { PmItem, PmKV } from '@/lib/types';
 import { useTabs } from '@/stores/tabs';
+import { logActivity } from '@/stores/activity';
 import { toast } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 
@@ -28,8 +29,21 @@ export async function sendTab(tab: RequestTabT) {
   set(tab.id, { loading: true, requestId, error: null, response: null, tests: [], scriptErrors: [], warnings: [], startedAt: Date.now(), visualizer: null });
   const ctx = contextFor(tab.collectionId, tab.itemId);
   const before = clone(ctx.scopes);
+  const started = performance.now();
   const res = await execute(tab.draft, ctx, { requestId });
   commitScopes(ctx, before);
+  const method = res.spec?.method ?? (tab.draft.request?.method ?? 'GET').toUpperCase();
+  const tests = res.tests ?? [];
+  const failedTests = tests.filter((t) => !t.passed).length;
+  logActivity({
+    cat: 'request',
+    label: `${method} ${tab.draft.name}`,
+    status: res.error && res.error !== 'cancelled' ? 'failed' : 'finished',
+    ms: Math.round(res.response?.timings.totalMs ?? performance.now() - started),
+    detail: res.error
+      ? `${res.spec?.url ?? ''} — ${res.error}`
+      : `${res.spec?.url ?? ''} → ${res.response?.status ?? ''}${tests.length ? ` · tests ${tests.length - failedTests}/${tests.length}` : ''}`,
+  });
   if (res.error === 'cancelled') {
     set(tab.id, { loading: false, error: 'Request cancelled', response: null });
     return;

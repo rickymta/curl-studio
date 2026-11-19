@@ -284,9 +284,18 @@ mod tests {
     #[test]
     fn interpolates_and_integrates() {
         let st = vec![
-            Stage { duration_s: 10.0, target: 10.0 },
-            Stage { duration_s: 10.0, target: 10.0 },
-            Stage { duration_s: 5.0, target: 0.0 },
+            Stage {
+                duration_s: 10.0,
+                target: 10.0,
+            },
+            Stage {
+                duration_s: 10.0,
+                target: 10.0,
+            },
+            Stage {
+                duration_s: 5.0,
+                target: 0.0,
+            },
         ];
         assert_eq!(stage_value(0.0, &st, 5.0), 5.0);
         assert_eq!(stage_value(0.0, &st, 15.0), 10.0);

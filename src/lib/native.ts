@@ -1,3 +1,6 @@
+import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog';
+import { openPath as openPathNative, openUrl as openUrlNative } from '@tauri-apps/plugin-opener';
+
 import { download } from './format';
 import { api, isTauri } from './ipc';
 
@@ -9,8 +12,7 @@ export interface Filter {
 /** File picker returning absolute paths (browser dev mode falls back to a prompt). */
 export async function pickFiles(opts: { title: string; filters?: Filter[]; multiple?: boolean; directory?: boolean }): Promise<string[]> {
   if (isTauri) {
-    const { open } = await import('@tauri-apps/plugin-dialog');
-    const r = await open({ title: opts.title, multiple: !!opts.multiple, directory: !!opts.directory, filters: opts.filters });
+    const r = await openDialog({ title: opts.title, multiple: !!opts.multiple, directory: !!opts.directory, filters: opts.filters });
     if (!r) return [];
     return Array.isArray(r) ? r : [r];
   }
@@ -41,8 +43,7 @@ export async function pickTextFiles(opts: { title: string; filters?: Filter[]; m
 /** Save text through a native "Save as" dialog (browser: download). Returns false if cancelled. */
 export async function saveText(defaultName: string, text: string, filters?: Filter[]): Promise<boolean> {
   if (isTauri) {
-    const { save } = await import('@tauri-apps/plugin-dialog');
-    const path = await save({ defaultPath: defaultName, filters });
+    const path = await saveDialog({ defaultPath: defaultName, filters });
     if (!path) return false;
     await api.writeText(path, text);
     return true;
@@ -56,16 +57,14 @@ export async function saveText(defaultName: string, text: string, filters?: Filt
 
 export async function savePath(defaultName: string, filters?: Filter[]): Promise<string | null> {
   if (isTauri) {
-    const { save } = await import('@tauri-apps/plugin-dialog');
-    return (await save({ defaultPath: defaultName, filters })) ?? null;
+    return (await saveDialog({ defaultPath: defaultName, filters })) ?? null;
   }
   return window.prompt('Save to (absolute path)', defaultName);
 }
 
 export async function openUrl(url: string): Promise<void> {
   if (isTauri) {
-    const { openUrl } = await import('@tauri-apps/plugin-opener');
-    await openUrl(url);
+    await openUrlNative(url);
     return;
   }
   window.open(url, '_blank', 'noopener');
@@ -73,8 +72,7 @@ export async function openUrl(url: string): Promise<void> {
 
 export async function revealPath(path: string): Promise<void> {
   if (isTauri) {
-    const { openPath } = await import('@tauri-apps/plugin-opener');
-    await openPath(path);
+    await openPathNative(path);
   }
 }
 

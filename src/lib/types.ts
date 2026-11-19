@@ -295,6 +295,17 @@ export interface Settings {
   maxBodyMb: number;
   historyLimit: number;
   autoSave: boolean;
+  /** Close tabs with unsaved changes without asking. */
+  discardUnsavedOnClose: boolean;
+  /** UI zoom, 0.6–2 (Ctrl +, Ctrl -, Ctrl 0). */
+  zoom: number;
+  /** Whole-UI brightness per theme, percent (70–130). */
+  brightnessDark: number;
+  brightnessLight: number;
+  /** In-app terminal shell: auto | powershell | pwsh | cmd | gitbash. */
+  terminalShell: string;
+  /** Folder new terminals start in (empty = home folder). */
+  terminalCwd: string;
   fontSize: number;
 }
 
@@ -321,4 +332,24 @@ export interface ConsoleEntry {
   level: 'log' | 'info' | 'warn' | 'error' | 'request';
   text: string;
   detail?: unknown;
+}
+
+export interface ActivityStats {
+  path: string;
+  bytes: number;
+  entries: number;
+  maxBytes: number;
+  retentionDays: number;
+}
+
+export type SupportTopic = 'bug' | 'feature' | 'question' | 'other';
+
+export interface SupportRequest {
+  name: string;
+  email: string;
+  topic: SupportTopic;
+  subject: string;
+  message: string;
+  includeSystem: boolean;
+  appVersion?: string;
 }

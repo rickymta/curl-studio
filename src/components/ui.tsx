@@ -57,11 +57,15 @@ export const Spinner = ({ className }: { className?: string }) => (
 );
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  // Full width unless the caller sets a width (w-32 and w-full are the same property, so both
+  // would leave the result to CSS order).
+  const sized = /(^|\s)(w-|min-w-0 flex-1)/.test(props.className ?? '');
   return (
     <input
       {...props}
       className={cn(
-        'h-8 w-full rounded-md border border-border bg-background px-2.5 outline-none placeholder:text-muted-foreground focus:border-accent',
+        'h-8 rounded-md border border-border bg-background px-2.5 outline-none placeholder:text-muted-foreground focus:border-accent',
+        !sized && 'w-full',
         props.className,
       )}
     />
@@ -144,6 +148,8 @@ export function ContextMenuWrap({
           className={contentCls}
           // Menu items often open a dialog; don't pull focus back to the trigger over it.
           onCloseAutoFocus={(e) => e.preventDefault()}
+          // React bubbles portal events to the trigger's ancestors (e.g. a tree row that toggles).
+          onClick={(e) => e.stopPropagation()}
         >
           {renderItems(items(), ContextMenu)}
         </ContextMenu.Content>
@@ -162,6 +168,7 @@ export function Dropdown({ items, children }: { items: MenuItem[]; children: Rea
           sideOffset={4}
           className={contentCls}
           onCloseAutoFocus={(e) => e.preventDefault()}
+          onClick={(e) => e.stopPropagation()}
         >
           {renderItems(items, DropdownMenu)}
         </DropdownMenu.Content>

@@ -45,6 +45,14 @@ pub async fn connect(opts: WsConnect) -> Result<String> {
             .map_err(|_| Error::Invalid(format!("invalid header value for `{}`", h.key)))?;
         req.headers_mut().append(n, v);
     }
+    // Same User-Agent as HTTP requests unless the user set one (some gateways reject handshakes
+    // without it).
+    if !req.headers().contains_key("user-agent") {
+        req.headers_mut().insert(
+            "user-agent",
+            HeaderValue::from_static(concat!("CurlStudio/", env!("CARGO_PKG_VERSION"))),
+        );
+    }
     if !opts.protocols.is_empty() {
         let v = HeaderValue::from_str(&opts.protocols.join(", "))
             .map_err(|_| Error::Invalid("invalid subprotocol".into()))?;
@@ -74,9 +82,9 @@ pub async fn connect(opts: WsConnect) -> Result<String> {
         let headers: Vec<Value> = resp
             .headers()
             .iter()
-            .map(|(k, v)| {
-                json!({"key": k.as_str(), "value": String::from_utf8_lossy(v.as_bytes())})
-            })
+            .map(
+                |(k, v)| json!({"key": k.as_str(), "value": String::from_utf8_lossy(v.as_bytes())}),
+            )
             .collect();
         s.push(
             "info",

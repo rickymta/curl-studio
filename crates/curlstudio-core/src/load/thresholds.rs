@@ -4,7 +4,10 @@ use super::metrics::{Stats, Summary, ThresholdResult};
 use super::model::Threshold;
 
 fn stat_of(s: &Stats, stat: &str) -> Option<f64> {
-    let k = stat.trim().to_ascii_lowercase().replace(['(', ')', ' '], "");
+    let k = stat
+        .trim()
+        .to_ascii_lowercase()
+        .replace(['(', ')', ' '], "");
     Some(match k.as_str() {
         "avg" | "mean" => s.avg,
         "min" => s.min,
@@ -29,8 +32,16 @@ pub fn actual(s: &Summary, th: &Threshold) -> Option<f64> {
         return match th.metric.as_str() {
             "http_req_duration" => stat_of(&st.latency, &stat),
             "http_req_waiting" => stat_of(&st.waiting, &stat),
-            "http_req_failed" => Some(if stat == "count" { st.failures as f64 } else { st.error_rate }),
-            "http_reqs" => Some(if stat == "rate" { st.rps } else { st.count as f64 }),
+            "http_req_failed" => Some(if stat == "count" {
+                st.failures as f64
+            } else {
+                st.error_rate
+            }),
+            "http_reqs" => Some(if stat == "rate" {
+                st.rps
+            } else {
+                st.count as f64
+            }),
             "apdex" => Some(st.apdex),
             "checks" => {
                 let (p, f) = s
@@ -38,7 +49,11 @@ pub fn actual(s: &Summary, th: &Threshold) -> Option<f64> {
                     .iter()
                     .filter(|c| c.step == step_id)
                     .fold((0u64, 0u64), |a, c| (a.0 + c.pass, a.1 + c.fail));
-                Some(if p + f == 0 { 1.0 } else { p as f64 / (p + f) as f64 })
+                Some(if p + f == 0 {
+                    1.0
+                } else {
+                    p as f64 / (p + f) as f64
+                })
             }
             _ => None,
         };
@@ -47,8 +62,16 @@ pub fn actual(s: &Summary, th: &Threshold) -> Option<f64> {
         "http_req_duration" => stat_of(&s.latency, &stat),
         "http_req_waiting" => stat_of(&s.waiting, &stat),
         "iteration_duration" => stat_of(&s.iteration, &stat),
-        "http_req_failed" => Some(if stat == "count" { s.failures as f64 } else { s.error_rate }),
-        "http_reqs" => Some(if stat == "rate" { s.rps } else { s.requests as f64 }),
+        "http_req_failed" => Some(if stat == "count" {
+            s.failures as f64
+        } else {
+            s.error_rate
+        }),
+        "http_reqs" => Some(if stat == "rate" {
+            s.rps
+        } else {
+            s.requests as f64
+        }),
         "checks" => {
             let n = s.checks_pass + s.checks_fail;
             Some(if stat == "count" {
@@ -59,9 +82,11 @@ pub fn actual(s: &Summary, th: &Threshold) -> Option<f64> {
                 s.checks_pass as f64 / n as f64
             })
         }
-        "data_received" => {
-            Some(if stat == "rate" { s.bytes_in as f64 / s.duration_s.max(0.001) } else { s.bytes_in as f64 })
-        }
+        "data_received" => Some(if stat == "rate" {
+            s.bytes_in as f64 / s.duration_s.max(0.001)
+        } else {
+            s.bytes_in as f64
+        }),
         "apdex" => Some(s.apdex.score),
         "dropped_iterations" => Some(s.dropped_iterations as f64),
         "iterations" => Some(if stat == "rate" {
@@ -86,7 +111,12 @@ fn holds(a: f64, op: &str, v: f64) -> bool {
 }
 
 pub fn expression(th: &Threshold) -> String {
-    let scope = th.step.as_deref().filter(|x| !x.is_empty()).map(|s| format!("{{step:{s}}}")).unwrap_or_default();
+    let scope = th
+        .step
+        .as_deref()
+        .filter(|x| !x.is_empty())
+        .map(|s| format!("{{step:{s}}}"))
+        .unwrap_or_default();
     format!("{}{} {} {} {}", th.metric, scope, th.stat, th.op, th.value)
 }
 
@@ -107,9 +137,16 @@ pub fn evaluate(s: &Summary, th: &Threshold) -> ThresholdResult {
 /// Fill `thresholds` and `verdict`.
 pub fn apply(s: &mut Summary, ths: &[Threshold]) {
     s.thresholds = ths.iter().map(|t| evaluate(s, t)).collect();
-    s.verdict = if s.thresholds.iter().all(|t| t.pass) { "passed".into() } else { "failed".into() };
+    s.verdict = if s.thresholds.iter().all(|t| t.pass) {
+        "passed".into()
+    } else {
+        "failed".into()
+    };
 }
 
 pub fn first_failure(s: &Summary, ths: &[Threshold]) -> Option<String> {
-    ths.iter().map(|t| evaluate(s, t)).find(|r| !r.pass && r.actual.is_some()).map(|r| r.expression)
+    ths.iter()
+        .map(|t| evaluate(s, t))
+        .find(|r| !r.pass && r.actual.is_some())
+        .map(|r| r.expression)
 }

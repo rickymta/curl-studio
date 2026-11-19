@@ -271,14 +271,12 @@ export type CurlStyle = 'bash' | 'cmd' | 'powershell';
 
 /** Render a resolved request as a curl command. */
 export function toCurl(spec: RequestSpec, style: CurlStyle = 'bash', multiline = true): string {
-  const q =
-    style === 'cmd'
-      ? (s: string) => `"${s.replace(/"/g, '\\"')}"`
-      : style === 'powershell'
-        ? (s: string) => `'${s.replace(/'/g, "''")}'`
-        : shq;
-  const cont = style === 'cmd' ? ' ^\n  ' : style === 'powershell' ? ' `\n  ' : ' \\\n  ';
-  const exe = style === 'powershell' ? 'curl.exe' : 'curl';
+  // PowerShell: Windows PowerShell 5.1 drops the `"` inside arguments it passes to native programs,
+  // so a JSON body arrived broken. The stop-parsing token `--%` hands the rest of the line to
+  // curl.exe verbatim (cmd-style quoting), which works the same in 5.1 and 7 — but only on one line.
+  const q = style === 'cmd' || style === 'powershell' ? (s: string) => `"${s.replace(/"/g, '\\"')}"` : shq;
+  const cont = style === 'cmd' ? ' ^\n  ' : style === 'powershell' ? ' ' : ' \\\n  ';
+  const exe = style === 'powershell' ? 'curl.exe --%' : 'curl';
   const parts: string[] = [];
   const hasBody = spec.body.mode !== 'none';
   if (spec.method !== 'GET' || (hasBody && spec.method === 'GET')) {

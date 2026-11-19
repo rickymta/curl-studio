@@ -1,6 +1,7 @@
 //! CurlStudio core: everything the UI calls goes through [`dispatch`], so the Tauri shell and the
 //! dev HTTP bridge share one command surface.
 
+pub mod activity;
 pub mod auth;
 pub mod cookies;
 pub mod error;
@@ -12,6 +13,8 @@ pub mod mqtt;
 pub mod sessions;
 pub mod sse;
 pub mod store;
+pub mod support;
+pub mod terminal;
 pub mod tls;
 pub mod vars;
 pub mod ws;
@@ -50,10 +53,63 @@ pub async fn dispatch(cmd: &str, args: Value) -> Result<Value> {
             "version": env!("CARGO_PKG_VERSION"),
             "dataDir": store::root().to_string_lossy(),
             "os": std::env::consts::OS,
+            "arch": std::env::consts::ARCH,
+            "home": dirs::home_dir().map(|p| p.to_string_lossy().into_owned()),
         }),
+        // ---- activity logs ----
+        "activity.load" => serde_json::to_value(activity::load()?)?,
+        "activity.append" => {
+            let entries: Vec<Value> = arg(a, "entries")?;
+            serde_json::to_value(activity::append(&entries)?)?
+        }
+        "activity.clear" => serde_json::to_value(activity::clear()?)?,
+        // ---- help / support ----
+        "support.systemInfo" => serde_json::to_value(support::system_info())?,
+        "support.send" => {
+            let req: support::SupportRequest = arg(a, "req")?;
+            support::send(&req).await?;
+            Value::Null
+        }
+        // ---- in-app terminal ----
+        "terminal.open" => {
+            let cwd: Option<String> = opt(a, "cwd")?;
+            let cwd = cwd
+                .filter(|c| !c.trim().is_empty())
+                .map(std::path::PathBuf::from)
+                .or_else(dirs::home_dir)
+                .unwrap_or_else(store::root);
+            let shell: Option<String> = opt(a, "shell")?;
+            serde_json::to_value(terminal::open(
+                &cwd,
+                opt(a, "cols")?.unwrap_or(80),
+                opt(a, "rows")?.unwrap_or(24),
+                shell.as_deref().unwrap_or("auto"),
+            )?)?
+        }
+        "terminal.read" => serde_json::to_value(terminal::read(arg(a, "id")?)?)?,
+        "terminal.write" => {
+            terminal::write(arg(a, "id")?, &arg::<String>(a, "data")?)?;
+            Value::Null
+        }
+        "terminal.resize" => {
+            terminal::resize(arg(a, "id")?, arg(a, "cols")?, arg(a, "rows")?)?;
+            Value::Null
+        }
+        "terminal.close" => {
+            terminal::close(arg(a, "id")?)?;
+            Value::Null
+        }
+        "terminal.font" => {
+            let shell: Option<String> = opt(a, "shell")?;
+            serde_json::to_value(terminal::font(shell.as_deref().unwrap_or("auto")))?
+        }
         "fs.readText" => {
             let p: String = arg(a, "path")?;
-            json!(tokio::fs::read_to_string(&p).await.map_err(|e| Error::Invalid(format!("{p}: {e}")))?)
+            json!(
+                tokio::fs::read_to_string(&p)
+                    .await
+                    .map_err(|e| Error::Invalid(format!("{p}: {e}")))?
+            )
         }
         "fs.writeText" => {
             let p: String = arg(a, "path")?;
@@ -63,13 +119,17 @@ pub async fn dispatch(cmd: &str, args: Value) -> Result<Value> {
         }
         "fs.readBase64" => {
             let p: String = arg(a, "path")?;
-            let data = tokio::fs::read(&p).await.map_err(|e| Error::Invalid(format!("{p}: {e}")))?;
+            let data = tokio::fs::read(&p)
+                .await
+                .map_err(|e| Error::Invalid(format!("{p}: {e}")))?;
             json!({ "data": B64.encode(&data), "size": data.len() })
         }
         "fs.writeBase64" => {
             let p: String = arg(a, "path")?;
             let data: String = arg(a, "data")?;
-            let bytes = B64.decode(data.trim()).map_err(|e| Error::Invalid(e.to_string()))?;
+            let bytes = B64
+                .decode(data.trim())
+                .map_err(|e| Error::Invalid(e.to_string()))?;
             tokio::fs::write(&p, bytes).await?;
             return done();
         }
@@ -81,7 +141,11 @@ pub async fn dispatch(cmd: &str, args: Value) -> Result<Value> {
         }
         "store.get" => store::get(&arg::<String>(a, "kind")?, &arg::<String>(a, "id")?)?,
         "store.put" => {
-            store::put(&arg::<String>(a, "kind")?, &arg::<String>(a, "id")?, &arg::<Value>(a, "doc")?)?;
+            store::put(
+                &arg::<String>(a, "kind")?,
+                &arg::<String>(a, "id")?,
+                &arg::<Value>(a, "doc")?,
+            )?;
             return done();
         }
         "store.delete" => {
@@ -124,9 +188,10 @@ pub async fn dispatch(cmd: &str, args: Value) -> Result<Value> {
         "ws.connect" => json!(ws::connect(arg(a, "opts")?).await?),
         "sse.connect" => json!(sse::connect(arg(a, "spec")?).await?),
         "mqtt.connect" => json!(mqtt::connect(arg(a, "opts")?).await?),
-        "session.poll" => {
-            sessions::poll(&arg::<String>(a, "id")?, opt::<u64>(a, "since")?.unwrap_or(0))?
-        }
+        "session.poll" => sessions::poll(
+            &arg::<String>(a, "id")?,
+            opt::<u64>(a, "since")?.unwrap_or(0),
+        )?,
         "session.command" => {
             sessions::command(&arg::<String>(a, "id")?, arg(a, "cmd")?)?;
             return done();
@@ -151,7 +216,10 @@ pub async fn dispatch(cmd: &str, args: Value) -> Result<Value> {
         )?),
         "load.status" => load::status(&arg::<String>(a, "id")?, opt(a, "since")?)?,
         "load.stop" => {
-            load::stop(&arg::<String>(a, "id")?, opt::<bool>(a, "hard")?.unwrap_or(false))?;
+            load::stop(
+                &arg::<String>(a, "id")?,
+                opt::<bool>(a, "hard")?.unwrap_or(false),
+            )?;
             return done();
         }
         "load.debug" => load::debug(arg(a, "scenario")?).await?,

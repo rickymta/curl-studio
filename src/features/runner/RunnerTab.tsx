@@ -8,6 +8,7 @@ import { formatMs, formatPct, slug } from '@/lib/format';
 import { pickTextFiles, saveText } from '@/lib/native';
 import { clone, findItem, flattenRequests, itemProtocol } from '@/lib/postman';
 import type { PmItem, TestResult } from '@/lib/types';
+import { beginActivity } from '@/stores/activity';
 import { errText, toast } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 
@@ -70,6 +71,9 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
   const [stopOnFail, setStopOnFail] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
   const [running, setRunning] = useState(false);
+  const [scale, setScale] = useState<'linear' | 'log'>('log');
+  const [order, setOrder] = useState<'run' | 'slow'>('run');
+  const [show, setShow] = useState<'all' | 'failed' | 'non2xx'>('all');
   const stop = useRef(false);
   if (!c) return <Empty title="Collection not found" />;
   const title = folderId ? (findItem(c.item, folderId)?.item.name ?? c.info.name) : c.info.name;
@@ -80,6 +84,9 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
     stop.current = false;
     setRunning(true);
     setResults([]);
+    let count = 0;
+    let bad = 0;
+    const end = beginActivity('load', `Collection run: ${title}`, `${list.length} requests × ${iterations} iteration(s)`);
     const ws = useWorkspace.getState();
     const prevEnv = ws.activeEnv;
     if ((envId || null) !== prevEnv) ws.setActiveEnv(envId || null);
@@ -108,6 +115,8 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
             tests: res.tests,
             errors: [...(res.error ? [res.error] : []), ...res.scriptErrors, ...(res.skipped ? ['skipped'] : [])],
           };
+          count++;
+          if (r.errors.length || r.tests.some((t) => !t.passed)) bad++;
           setResults((prev) => [...prev, r]);
           if (stopOnFail && (r.errors.length || r.tests.some((t) => !t.passed))) {
             stop.current = true;
@@ -122,7 +131,9 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
         }
       }
       if (persist) commitScopes(base, before);
+      end(bad ? `${bad} of ${count} requests failed` : null, `${count} requests, all passed`);
     } catch (e) {
+      end(errText(e));
       toast('error', errText(e));
     } finally {
       setRunning(false);
@@ -132,6 +143,10 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
   const tests = results.flatMap((r) => r.tests);
   const passed = tests.filter((t) => t.passed).length;
   const failedReq = results.filter((r) => r.errors.length || r.tests.some((t) => !t.passed)).length;
+  const non2xx = results.filter((r) => r.status !== null && (r.status < 200 || r.status >= 300)).length;
+  const isFailed = (r: (typeof results)[number]) => r.errors.length > 0 || r.tests.some((t) => !t.passed);
+  const isNon2xx = (r: (typeof results)[number]) => r.status !== null && (r.status < 200 || r.status >= 300);
+  const shownResults = results.filter((r) => show === 'all' || (show === 'failed' ? isFailed(r) : isNon2xx(r)));
   const avg = results.length ? results.reduce((a, r) => a + (r.timeMs ?? 0), 0) / results.length : 0;
   const perReq = all
     .map(({ item }) => {
@@ -230,8 +245,11 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
           <span>
             Tests <b className="text-success">{passed}</b> / <b className={passed < tests.length ? 'text-danger' : ''}>{tests.length}</b> {tests.length > 0 && `(${formatPct(passed / tests.length, 0)})`}
           </span>
-          <span>
-            Failed requests <b className={failedReq ? 'text-danger' : ''}>{failedReq}</b>
+          <span title="Network errors or failed tests">
+            Failed <b className={failedReq ? 'text-danger' : ''}>{failedReq}</b>
+          </span>
+          <span title="Responses outside 2xx (4xx, 5xx, redirects not followed)">
+            Non-2xx <b className={non2xx ? 'text-warning' : ''}>{non2xx}</b>
           </span>
           <span>
             Avg <b>{formatMs(avg)}</b>
@@ -250,11 +268,36 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
         <div className="min-h-0 flex-1 overflow-auto p-3">
           {!results.length && !running && <Empty title="No results yet">Configure the run on the left and press Run.</Empty>}
           {perReq.length > 1 && (
-            <ChartCard title="Average response time by request" className="mb-3">
-              <HBars items={perReq} format={formatMs} color={SERIES[0]} />
+            <ChartCard
+              title="Average response time by request"
+              subtitle={scale === 'log' ? 'log scale' : undefined}
+              className="mb-3"
+              legend={
+                <span className="flex items-center gap-2 text-[11.5px]">
+                  <Select value={order} onChange={(v) => setOrder(v as 'run' | 'slow')} options={[{ value: 'run', label: 'Run order' }, { value: 'slow', label: 'Slowest first' }]} className="h-6 w-32 text-[11.5px]" />
+                  <Select value={scale} onChange={(v) => setScale(v as 'linear' | 'log')} options={[{ value: 'linear', label: 'Linear' }, { value: 'log', label: 'Log scale' }]} className="h-6 w-28 text-[11.5px]" />
+                </span>
+              }
+            >
+              <HBars items={order === 'slow' ? [...perReq].sort((a, b) => b.value - a.value) : perReq} format={formatMs} color={SERIES[0]} scale={scale} />
             </ChartCard>
           )}
-          {results.map((r, i) => {
+          {results.length > 0 && (
+            <div className="mb-2 flex items-center gap-1 text-[12px]" role="group" aria-label="Filter results">
+              {(
+                [
+                  ['all', `All (${results.length})`],
+                  ['failed', `Failed (${failedReq})`],
+                  ['non2xx', `Non-2xx (${non2xx})`],
+                ] as const
+              ).map(([v, l]) => (
+                <button key={v} type="button" aria-pressed={show === v} onClick={() => setShow(v)} className={cn('rounded-full border px-2.5 py-0.5', show === v ? 'border-accent bg-accent/10 text-accent' : 'border-border text-muted-foreground hover:text-foreground')}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          )}
+          {shownResults.map((r, i) => {
             const ok = !r.errors.length && r.tests.every((t) => t.passed);
             return (
               <div key={i} className="mb-1.5 rounded-md border border-border bg-surface px-3 py-2">

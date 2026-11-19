@@ -1,10 +1,12 @@
-import { FileUp, RefreshCw, Wand2 } from 'lucide-react';
-import { useState } from 'react';
+import { CircleAlert, FileUp, RefreshCw, Wand2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { CodeEditor, type Lang } from '@/components/CodeEditor';
 import { KeyValueTable } from '@/components/KeyValueTable';
 import { Button, cn, IconButton, Select, Spinner } from '@/components/ui';
+import { graphqlExtension } from '@/components/graphqlExt';
 import { prettyJson, prettyXml } from '@/lib/format';
+import { type GqlField, type GqlSchema, type GqlType, type TypeRef, typeName } from '@/lib/graphqlAssist';
 import { pickFiles } from '@/lib/native';
 import type { PmBody, RequestSpec } from '@/lib/types';
 import { api } from '@/lib/ipc';
@@ -30,26 +32,8 @@ const RAW_LANGS = [
 const INTROSPECTION = `query IntrospectionQuery { __schema { queryType { name } mutationType { name } subscriptionType { name } types { kind name description fields(includeDeprecated: true) { name description args { name type { ...TypeRef } } type { ...TypeRef } } inputFields { name type { ...TypeRef } } enumValues { name } } } }
 fragment TypeRef on __Type { kind name ofType { kind name ofType { kind name ofType { kind name ofType { kind name } } } } }`;
 
-interface TypeRef {
-  kind: string;
-  name: string | null;
-  ofType: TypeRef | null;
-}
-interface GqlField {
-  name: string;
-  description?: string;
-  args: { name: string; type: TypeRef }[];
-  type: TypeRef;
-}
-interface GqlType {
-  kind: string;
-  name: string;
-  description?: string;
-  fields: GqlField[] | null;
-}
-
-const typeName = (t: TypeRef | null): string =>
-  !t ? '' : t.kind === 'NON_NULL' ? `${typeName(t.ofType)}!` : t.kind === 'LIST' ? `[${typeName(t.ofType)}]` : (t.name ?? '');
+/** Schemas fetched this session, by endpoint URL, so reopening a tab keeps completion. */
+const schemaCache = new Map<string, GqlSchema>();
 
 function GraphQLEditor({
   body,
@@ -63,7 +47,14 @@ function GraphQLEditor({
   buildIntrospection: () => RequestSpec | null;
 }) {
   const g = body.graphql ?? { query: '', variables: '' };
-  const [schema, setSchema] = useState<{ types: GqlType[]; query?: string; mutation?: string; subscription?: string } | null>(null);
+  const urlKey = buildIntrospection()?.url ?? '';
+  const [schema, setSchemaState] = useState<GqlSchema | null>(() => schemaCache.get(urlKey) ?? null);
+  const setSchema = (s: GqlSchema) => {
+    schemaCache.set(urlKey, s);
+    setSchemaState(s);
+  };
+  const [problems, setProblems] = useState<{ n: number; first?: string }>({ n: 0 });
+  const gqlExt = useMemo(() => (schema ? graphqlExtension(schema, (n, first) => setTimeout(() => setProblems({ n, first }), 0)) : []), [schema]);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const fetchSchema = async () => {
@@ -111,7 +102,21 @@ function GraphQLEditor({
             {busy ? <Spinner className="size-3" /> : <RefreshCw className="size-3" />} Fetch schema
           </Button>
         </div>
-        <CodeEditor value={g.query ?? ''} onChange={(v) => onChange({ ...body, mode: 'graphql', graphql: { ...g, query: v } })} variables={known} className="min-h-0 flex-1" language="text" placeholder="query { ... }" />
+        <CodeEditor value={g.query ?? ''} onChange={(v) => onChange({ ...body, mode: 'graphql', graphql: { ...g, query: v } })} variables={known} className="min-h-0 flex-1" language="text" placeholder="query { ... }" extensions={gqlExt} />
+        <div className="flex h-6 shrink-0 items-center gap-1.5 border-t border-border px-2 text-[11.5px] text-muted-foreground">
+          {!schema ? (
+            'Fetch the schema for field completion (Ctrl+Space) and error checking.'
+          ) : problems.n ? (
+            <span className="flex min-w-0 items-center gap-1.5 text-danger" title={problems.first}>
+              <CircleAlert className="size-3.5 shrink-0" />
+              <span className="truncate">
+                {problems.n} problem{problems.n > 1 ? 's' : ''}: {problems.first}
+              </span>
+            </span>
+          ) : (
+            <span className="text-success">✓ Query matches the schema</span>
+          )}
+        </div>
       </div>
       <div className="flex min-w-0 flex-[2] flex-col">
         <div className="flex h-8 items-center px-2 text-[11px] font-semibold text-muted-foreground uppercase">GraphQL Variables</div>

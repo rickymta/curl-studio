@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core';
+
 import type * as T from './types';
 import type * as L from './load/types';
 
@@ -31,7 +33,6 @@ function toError(e: unknown): IpcError {
 export async function call<R>(cmd: string, args: Record<string, unknown> = {}): Promise<R> {
   try {
     if (inTauri) {
-      const { invoke } = await import('@tauri-apps/api/core');
       return await invoke<R>('call', { cmd, args });
     }
     const res = await fetch(BRIDGE, {
@@ -59,7 +60,23 @@ type StoreKind =
 type DocName = 'globals' | 'settings' | 'history' | 'cookies' | 'workspace';
 
 export const api = {
-  info: () => call<{ version: string; dataDir: string; os: string }>('app.info'),
+  info: () => call<{ version: string; dataDir: string; os: string; arch: string; home: string | null }>('app.info'),
+
+  activityLoad: () => call<{ entries: unknown[]; stats: T.ActivityStats }>('activity.load'),
+  activityAppend: (entries: unknown[]) => call<T.ActivityStats>('activity.append', { entries }),
+  activityClear: () => call<T.ActivityStats>('activity.clear'),
+
+  supportSystemInfo: () => call<{ os: string; arch: string }>('support.systemInfo'),
+  sendSupport: (req: T.SupportRequest) => call<null>('support.send', { req }),
+
+  terminalOpen: (o: { cwd?: string | null; cols: number; rows: number; shell: string }) =>
+    call<{ id: number; shell: string }>('terminal.open', o),
+  terminalRead: (id: number) => call<{ data: string; exited: boolean }>('terminal.read', { id }),
+  terminalWrite: (id: number, data: string) => call<null>('terminal.write', { id, data }),
+  terminalResize: (id: number, cols: number, rows: number) => call<null>('terminal.resize', { id, cols, rows }),
+  terminalClose: (id: number) => call<null>('terminal.close', { id }),
+  terminalFont: (shell: string) =>
+    call<{ face?: string | null; size?: number | null; weight?: number | null; source?: string | null }>('terminal.font', { shell }),
   readText: (path: string) => call<string>('fs.readText', { path }),
   writeText: (path: string, text: string) => call<null>('fs.writeText', { path, text }),
   readBase64: (path: string) => call<{ data: string; size: number }>('fs.readBase64', { path }),

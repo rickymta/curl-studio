@@ -25,11 +25,20 @@ impl<'a> Observed<'a> {
         headers: &'a [(String, String)],
         body: &'a str,
     ) -> Self {
-        Self { status, duration_ms, size, headers, body, json: OnceLock::new() }
+        Self {
+            status,
+            duration_ms,
+            size,
+            headers,
+            body,
+            json: OnceLock::new(),
+        }
     }
 
     fn json(&self) -> Option<&Value> {
-        self.json.get_or_init(|| serde_json::from_str(self.body).ok()).as_ref()
+        self.json
+            .get_or_init(|| serde_json::from_str(self.body).ok())
+            .as_ref()
     }
 
     fn header(&self, name: &str) -> Option<&str> {
@@ -47,7 +56,9 @@ fn regex_cached(p: &str) -> Option<regex::Regex> {
     if g.len() > 512 {
         g.clear();
     }
-    g.entry(p.to_string()).or_insert_with(|| regex::Regex::new(p).ok()).clone()
+    g.entry(p.to_string())
+        .or_insert_with(|| regex::Regex::new(p).ok())
+        .clone()
 }
 
 fn normalise_path(p: &str) -> String {
@@ -76,18 +87,21 @@ fn as_text(v: &Value) -> String {
 }
 
 fn status_in(status: u16, spec: &str) -> bool {
-    spec.split(',').map(str::trim).filter(|s| !s.is_empty()).any(|part| {
-        if let Some((a, b)) = part.split_once('-') {
-            match (a.trim().parse::<u16>(), b.trim().parse::<u16>()) {
-                (Ok(a), Ok(b)) => (a..=b).contains(&status),
-                _ => false,
+    spec.split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .any(|part| {
+            if let Some((a, b)) = part.split_once('-') {
+                match (a.trim().parse::<u16>(), b.trim().parse::<u16>()) {
+                    (Ok(a), Ok(b)) => (a..=b).contains(&status),
+                    _ => false,
+                }
+            } else if part.len() == 3 && part.ends_with("xx") {
+                part.as_bytes()[0] - b'0' == (status / 100) as u8
+            } else {
+                part.parse::<u16>().map(|c| c == status).unwrap_or(false)
             }
-        } else if part.len() == 3 && part.ends_with("xx") {
-            part.as_bytes()[0] - b'0' == (status / 100) as u8
-        } else {
-            part.parse::<u16>().map(|c| c == status).unwrap_or(false)
-        }
-    })
+        })
 }
 
 /// True when `status` is in the expected list (default `200-399`).
@@ -106,11 +120,15 @@ fn compare(actual: Option<&str>, op: &str, expected: &str) -> bool {
         _ => {
             let Some(a) = actual else { return false };
             match op {
-                "eq" => a == expected || matches!((num(a), num(expected)), (Some(x), Some(y)) if x == y),
+                "eq" => {
+                    a == expected || matches!((num(a), num(expected)), (Some(x), Some(y)) if x == y)
+                }
                 "neq" => a != expected,
                 "contains" => a.contains(expected),
                 "notContains" => !a.contains(expected),
-                "matches" => regex_cached(expected).map(|r| r.is_match(a)).unwrap_or(false),
+                "matches" => regex_cached(expected)
+                    .map(|r| r.is_match(a))
+                    .unwrap_or(false),
                 "in" => expected.split(',').any(|e| e.trim() == a),
                 "lt" | "lte" | "gt" | "gte" => match (num(a), num(expected)) {
                     (Some(x), Some(y)) => match op {
@@ -157,14 +175,22 @@ pub fn check(r: &Rule, o: &Observed) -> bool {
         "body" => compare(Some(o.body), &r.op, &r.value),
         "header" => compare(o.header(&r.path), &r.op, &r.value),
         "jsonpath" => {
-            let v = o.json().and_then(|j| json_query(j, &r.path)).map(|v| as_text(&v));
+            let v = o
+                .json()
+                .and_then(|j| json_query(j, &r.path))
+                .map(|v| as_text(&v));
             compare(v.as_deref(), &r.op, &r.value)
         }
         "regex" => {
             let m = regex_cached(&r.path).and_then(|re| {
-                re.captures(o.body).map(|c| c.get(1).or(c.get(0)).map(|m| m.as_str().to_string()))
+                re.captures(o.body)
+                    .map(|c| c.get(1).or(c.get(0)).map(|m| m.as_str().to_string()))
             });
-            compare(m.flatten().as_deref(), if r.op.is_empty() { "exists" } else { &r.op }, &r.value)
+            compare(
+                m.flatten().as_deref(),
+                if r.op.is_empty() { "exists" } else { &r.op },
+                &r.value,
+            )
         }
         _ => false,
     }
@@ -175,9 +201,14 @@ pub fn extract(e: &Extractor, o: &Observed) -> Option<String> {
         "status" => Some(o.status.to_string()),
         "body" => Some(o.body.to_string()),
         "header" => o.header(&e.path).map(str::to_string),
-        "jsonpath" => o.json().and_then(|j| json_query(j, &e.path)).map(|v| as_text(&v)),
+        "jsonpath" => o
+            .json()
+            .and_then(|j| json_query(j, &e.path))
+            .map(|v| as_text(&v)),
         "regex" => regex_cached(&e.path).and_then(|re| {
-            re.captures(o.body).and_then(|c| c.get(1).or(c.get(0))).map(|m| m.as_str().to_string())
+            re.captures(o.body)
+                .and_then(|c| c.get(1).or(c.get(0)))
+                .map(|m| m.as_str().to_string())
         }),
         "cookie" => o
             .headers
@@ -217,8 +248,14 @@ mod tests {
         assert!(!check(&rule("status", "", "eq", "200"), &o));
         assert!(check(&rule("duration", "", "lt", "500"), &o));
         assert!(check(&rule("jsonpath", "data.items[0].id", "eq", "7"), &o));
-        assert!(check(&rule("jsonpath", "$.data.missing", "notExists", ""), &o));
-        assert!(check(&rule("header", "content-type", "contains", "json"), &o));
+        assert!(check(
+            &rule("jsonpath", "$.data.missing", "notExists", ""),
+            &o
+        ));
+        assert!(check(
+            &rule("header", "content-type", "contains", "json"),
+            &o
+        ));
         assert!(check(&rule("body", "", "contains", "token"), &o));
         let ex = Extractor {
             var: "t".into(),

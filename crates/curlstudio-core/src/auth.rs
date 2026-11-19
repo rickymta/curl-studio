@@ -21,7 +21,11 @@ fn parse_challenge(h: &str) -> std::collections::HashMap<String, String> {
     let mut rest = body;
     while !rest.is_empty() {
         let Some(eq) = rest.find('=') else { break };
-        let key = rest[..eq].trim().trim_start_matches(',').trim().to_ascii_lowercase();
+        let key = rest[..eq]
+            .trim()
+            .trim_start_matches(',')
+            .trim()
+            .to_ascii_lowercase();
         rest = &rest[eq + 1..];
         let value;
         if let Some(r) = rest.strip_prefix('"') {
@@ -50,7 +54,10 @@ pub fn digest_header(
 ) -> Result<String> {
     let c = parse_challenge(challenge);
     let realm = c.get("realm").cloned().unwrap_or_default();
-    let nonce = c.get("nonce").cloned().ok_or_else(|| Error::Protocol("digest: no nonce".into()))?;
+    let nonce = c
+        .get("nonce")
+        .cloned()
+        .ok_or_else(|| Error::Protocol("digest: no nonce".into()))?;
     let algorithm = c.get("algorithm").cloned().unwrap_or_else(|| "MD5".into());
     let qop_offer = c.get("qop").cloned().unwrap_or_default();
     let qop = if qop_offer.split(',').any(|q| q.trim() == "auth") {
@@ -61,7 +68,13 @@ pub fn digest_header(
         None
     };
     let sha = algorithm.to_ascii_uppercase().starts_with("SHA-256");
-    let h = |s: &str| if sha { sha256_hex(s.as_bytes()) } else { md5_hex(s.as_bytes()) };
+    let h = |s: &str| {
+        if sha {
+            sha256_hex(s.as_bytes())
+        } else {
+            md5_hex(s.as_bytes())
+        }
+    };
     let cnonce = hex::encode(rand::random::<[u8; 8]>());
     let nc = "00000001";
     let mut ha1 = h(&format!("{user}:{realm}:{pass}"));
@@ -155,13 +168,21 @@ pub fn aws_sigv4(
     }
     signed.sort_by(|a, b| a.0.cmp(&b.0));
     let canonical_headers: String = signed.iter().map(|(k, v)| format!("{k}:{v}\n")).collect();
-    let signed_names = signed.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>().join(";");
+    let signed_names = signed
+        .iter()
+        .map(|(k, _)| k.as_str())
+        .collect::<Vec<_>>()
+        .join(";");
     let mut q: Vec<(String, String)> = url
         .query_pairs()
         .map(|(k, v)| (uri_encode(&k, false), uri_encode(&v, false)))
         .collect();
     q.sort();
-    let canonical_query = q.iter().map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>().join("&");
+    let canonical_query = q
+        .iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<_>>()
+        .join("&");
     let path = if c.service == "s3" {
         url.path().to_string()
     } else {
@@ -173,7 +194,10 @@ pub fn aws_sigv4(
         if path.is_empty() { "/" } else { &path }
     );
     let scope = format!("{date}/{}/{}/aws4_request", c.region, c.service);
-    let to_sign = format!("AWS4-HMAC-SHA256\n{amz_date}\n{scope}\n{}", sha256_hex(canonical.as_bytes()));
+    let to_sign = format!(
+        "AWS4-HMAC-SHA256\n{amz_date}\n{scope}\n{}",
+        sha256_hex(canonical.as_bytes())
+    );
     let k_date = hmac(format!("AWS4{}", c.secret_key).as_bytes(), &date);
     let k_region = hmac(&k_date, c.region);
     let k_service = hmac(&k_region, c.service);
@@ -204,7 +228,15 @@ mod tests {
     fn digest_rfc2617_example() {
         // RFC 2617 §3.5 (qop=auth, fixed cnonce is random here, so check structure only).
         let ch = r#"Digest realm="testrealm@host.com", qop="auth,auth-int", nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093", opaque="5ccc069c403ebaf9f0171e9517f40e41""#;
-        let h = digest_header(ch, "Mufasa", "Circle Of Life", "GET", "/dir/index.html", b"").unwrap();
+        let h = digest_header(
+            ch,
+            "Mufasa",
+            "Circle Of Life",
+            "GET",
+            "/dir/index.html",
+            b"",
+        )
+        .unwrap();
         assert!(h.starts_with("Digest username=\"Mufasa\""));
         assert!(h.contains("qop=auth"));
         assert!(h.contains("opaque=\"5ccc069c403ebaf9f0171e9517f40e41\""));
@@ -212,8 +244,11 @@ mod tests {
 
     #[test]
     fn sigv4_shape() {
-        let url = url::Url::parse("https://iam.amazonaws.com/?Action=ListUsers&Version=2010-05-08").unwrap();
-        let now = chrono::DateTime::parse_from_rfc3339("2015-08-30T12:36:00Z").unwrap().to_utc();
+        let url = url::Url::parse("https://iam.amazonaws.com/?Action=ListUsers&Version=2010-05-08")
+            .unwrap();
+        let now = chrono::DateTime::parse_from_rfc3339("2015-08-30T12:36:00Z")
+            .unwrap()
+            .to_utc();
         let c = AwsCreds {
             access_key: "AKIDEXAMPLE",
             secret_key: "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
@@ -223,7 +258,9 @@ mod tests {
         };
         let h = aws_sigv4(&c, "GET", &url, &HeaderMap::new(), None, now);
         let auth = &h[0].1;
-        assert!(auth.starts_with("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/iam/aws4_request"));
+        assert!(auth.starts_with(
+            "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/iam/aws4_request"
+        ));
         assert!(auth.contains("SignedHeaders=host;x-amz-content-sha256;x-amz-date"));
     }
 }

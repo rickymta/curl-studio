@@ -13,12 +13,16 @@ use crate::model::{Body, KeyValue, RequestSpec};
 const FIRST: &[&str] = &[
     "Ava", "Liam", "Mia", "Noah", "Emma", "Lucas", "Lan", "Minh", "Sofia", "Kai", "Hana", "Leo",
 ];
-const LAST: &[&str] = &["Nguyen", "Smith", "Tran", "Garcia", "Kim", "Le", "Brown", "Pham", "Ito"];
+const LAST: &[&str] = &[
+    "Nguyen", "Smith", "Tran", "Garcia", "Kim", "Le", "Brown", "Pham", "Ito",
+];
 const WORDS: &[&str] = &[
     "alpha", "bravo", "cobalt", "delta", "ember", "falcon", "glacier", "harbor", "indigo", "jade",
 ];
 const DOMAINS: &[&str] = &["example.com", "example.net", "example.org", "test.dev"];
-const COLORS: &[&str] = &["red", "green", "blue", "orange", "purple", "teal", "black", "white"];
+const COLORS: &[&str] = &[
+    "red", "green", "blue", "orange", "purple", "teal", "black", "white",
+];
 
 /// Value of a Postman dynamic variable (`name` without the `$`), or `None` if unknown.
 pub fn dynamic(name: &str) -> Option<String> {
@@ -71,9 +75,17 @@ pub fn dynamic(name: &str) -> Option<String> {
             let c = b"abcdefghijklmnopqrstuvwxyz0123456789";
             (c[r.random_range(0..c.len())] as char).to_string()
         }
-        "randomUrl" => format!("https://{}.{}", WORDS.choose(&mut r)?, DOMAINS.choose(&mut r)?),
-        "randomCity" => ["Hanoi", "Tokyo", "Berlin", "Lima", "Oslo"].choose(&mut r)?.to_string(),
-        "randomCountry" => ["Vietnam", "Japan", "Germany", "Peru"].choose(&mut r)?.to_string(),
+        "randomUrl" => format!(
+            "https://{}.{}",
+            WORDS.choose(&mut r)?,
+            DOMAINS.choose(&mut r)?
+        ),
+        "randomCity" => ["Hanoi", "Tokyo", "Berlin", "Lima", "Oslo"]
+            .choose(&mut r)?
+            .to_string(),
+        "randomCountry" => ["Vietnam", "Japan", "Germany", "Peru"]
+            .choose(&mut r)?
+            .to_string(),
         "randomCompanyName" => format!("{} Labs", WORDS.choose(&mut r)?),
         "randomLoremSentence" => "Lorem ipsum dolor sit amet, consectetur adipiscing elit.".into(),
         _ => return None,
@@ -148,8 +160,12 @@ pub fn resolve_request(spec: &RequestSpec, vars: &HashMap<String, String>) -> Re
     s.url = resolve_deep(&spec.url, vars);
     s.headers = kv(&spec.headers, vars);
     s.body = match &spec.body {
-        Body::Raw { raw } => Body::Raw { raw: resolve_deep(raw, vars) },
-        Body::Urlencoded { fields } => Body::Urlencoded { fields: kv(fields, vars) },
+        Body::Raw { raw } => Body::Raw {
+            raw: resolve_deep(raw, vars),
+        },
+        Body::Urlencoded { fields } => Body::Urlencoded {
+            fields: kv(fields, vars),
+        },
         Body::Formdata { fields } => Body::Formdata {
             fields: fields
                 .iter()
@@ -175,7 +191,10 @@ mod tests {
         let mut v = HashMap::new();
         v.insert("host".to_string(), "api.test".to_string());
         v.insert("base".to_string(), "https://{{host}}/v1".to_string());
-        assert_eq!(resolve_deep("{{base}}/users/{{id}}", &v), "https://api.test/v1/users/{{id}}");
+        assert_eq!(
+            resolve_deep("{{base}}/users/{{id}}", &v),
+            "https://api.test/v1/users/{{id}}"
+        );
         let g = resolve_deep("{{$guid}}", &v);
         assert_eq!(g.len(), 36);
         assert_eq!(resolve_deep("a {{ unterminated", &v), "a {{ unterminated");

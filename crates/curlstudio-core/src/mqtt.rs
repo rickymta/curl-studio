@@ -4,7 +4,9 @@ use std::time::Duration;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
-use rumqttc::{AsyncClient, Event, LastWill, MqttOptions, Packet, QoS, TlsConfiguration, Transport};
+use rumqttc::{
+    AsyncClient, Event, LastWill, MqttOptions, Packet, QoS, TlsConfiguration, Transport,
+};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -64,9 +66,11 @@ fn parse_target(url: &str) -> Result<(String, u16, bool)> {
     };
     let rest = rest.trim_end_matches('/');
     let (host, port) = match rest.rsplit_once(':') {
-        Some((h, p)) => {
-            (h.to_string(), p.parse().map_err(|_| Error::Invalid(format!("bad port `{p}`")))?)
-        }
+        Some((h, p)) => (
+            h.to_string(),
+            p.parse()
+                .map_err(|_| Error::Invalid(format!("bad port `{p}`")))?,
+        ),
         None => (rest.to_string(), if tls { 8883 } else { 1883 }),
     };
     if host.is_empty() {
@@ -78,7 +82,10 @@ fn parse_target(url: &str) -> Result<(String, u16, bool)> {
 pub async fn connect(o: MqttConnect) -> Result<String> {
     let (host, port, tls) = parse_target(&o.url)?;
     let client_id = if o.client_id.trim().is_empty() {
-        format!("curlstudio-{}", &uuid::Uuid::new_v4().simple().to_string()[..8])
+        format!(
+            "curlstudio-{}",
+            &uuid::Uuid::new_v4().simple().to_string()[..8]
+        )
     } else {
         o.client_id.clone()
     };
@@ -181,8 +188,17 @@ mod tests {
 
     #[test]
     fn targets() {
-        assert_eq!(parse_target("mqtt://broker:1884").unwrap(), ("broker".into(), 1884, false));
-        assert_eq!(parse_target("mqtts://broker").unwrap(), ("broker".into(), 8883, true));
-        assert_eq!(parse_target("localhost").unwrap(), ("localhost".into(), 1883, false));
+        assert_eq!(
+            parse_target("mqtt://broker:1884").unwrap(),
+            ("broker".into(), 1884, false)
+        );
+        assert_eq!(
+            parse_target("mqtts://broker").unwrap(),
+            ("broker".into(), 8883, true)
+        );
+        assert_eq!(
+            parse_target("localhost").unwrap(),
+            ("localhost".into(), 1883, false)
+        );
     }
 }

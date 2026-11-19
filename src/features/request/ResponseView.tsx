@@ -1,11 +1,12 @@
-import { CheckCircle2, Copy, Download, Search, WrapText, XCircle } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { CheckCircle2, ChevronRight, Copy, Download, Search, WrapText, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { CodeEditor, type Lang } from '@/components/CodeEditor';
 import { Badge, cn, Empty, IconButton, Select, Spinner, Tabs } from '@/components/ui';
 import { formatBytes, formatMs, languageOf, prettyJson, prettyXml, statusTone } from '@/lib/format';
 import { copyText, saveText, savePath } from '@/lib/native';
 import { api } from '@/lib/ipc';
+import { explainError } from '@/lib/netError';
 import type { ResponseData, TestResult } from '@/lib/types';
 import type { ResponseState } from '@/stores/tabs';
 import { errText, toast } from '@/stores/ui';
@@ -185,7 +186,7 @@ export function ResponseView({ state, onCancel }: { state: ResponseState | undef
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
         <Spinner className="size-6" />
-        <div>Sending request…</div>
+        <Elapsed since={state.startedAt} />
         {onCancel && (
           <button type="button" onClick={onCancel} className="rounded-md border border-border px-3 py-1 hover:bg-surface-hover">
             Cancel
@@ -204,10 +205,7 @@ export function ResponseView({ state, onCancel }: { state: ResponseState | undef
   if (!r) {
     return (
       <div className="space-y-2 overflow-auto p-4">
-        <div className="flex items-center gap-2 font-semibold text-danger">
-          <XCircle className="size-4" /> Could not send request
-        </div>
-        <pre className="selectable rounded-md bg-danger-soft p-3 font-mono text-[12px] whitespace-pre-wrap text-danger">{state.error}</pre>
+        <FriendlyError error={state.error ?? ''} />
         {!!state.warnings?.length && <div className="text-[12px] text-warning">{state.warnings.join(' · ')}</div>}
         {!!state.scriptErrors?.length && <TestList tests={state.tests ?? []} errors={state.scriptErrors} />}
       </div>
@@ -253,6 +251,11 @@ export function ResponseView({ state, onCancel }: { state: ResponseState | undef
         ]}
         right={
           <div className="flex items-center gap-3 text-[12px]">
+            {state.restored && (
+              <span className="text-muted-foreground" title="Kept from the previous session; press Send for a fresh response">
+                from {state.startedAt ? new Date(state.startedAt).toLocaleString() : 'last session'}
+              </span>
+            )}
             <span>
               Status <Badge tone={statusTone(r.status)}>{r.status} {r.statusText}</Badge>
             </span>
@@ -384,6 +387,40 @@ export function ResponseView({ state, onCancel }: { state: ResponseState | undef
           <iframe title="visualizer" sandbox="allow-scripts" className="h-full w-full bg-white" srcDoc={renderTemplate(state.visualizer.template, state.visualizer.data)} />
         )}
       </div>
+    </div>
+  );
+}
+
+/** "Sending request… 2.4 s" so a slow connect never looks frozen. */
+function Elapsed({ since }: { since?: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(t);
+  }, []);
+  const s = since ? (now - since) / 1000 : 0;
+  return (
+    <div className="text-center">
+      <div>Sending request…</div>
+      {s >= 0.5 && <div className="mt-0.5 font-mono text-[12px] tabular-nums">{s.toFixed(1)} s</div>}
+    </div>
+  );
+}
+
+/** Short title + hint for transport errors; the raw text stays one click away. */
+function FriendlyError({ error }: { error: string }) {
+  const e = explainError(error);
+  const [open, setOpen] = useState(e.kind === 'other');
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-[14px] font-semibold text-danger">
+        <XCircle className="size-4 shrink-0" /> {e.title}
+      </div>
+      <p className="text-[12.5px] text-muted-foreground">{e.hint}</p>
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground">
+        <ChevronRight className={cn('size-3.5 transition-transform', open && 'rotate-90')} /> Details
+      </button>
+      {open && <pre className="selectable rounded-md bg-danger-soft p-3 font-mono text-[12px] whitespace-pre-wrap text-danger">{error}</pre>}
     </div>
   );
 }

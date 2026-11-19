@@ -1,0 +1,25 @@
+# Local services for testing CurlStudio end to end:
+#   docker compose -f testing/mock/docker-compose.yml up -d
+name: curlstudio-mock
+services:
+  api:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install --no-audit --no-fund ws@8 graphql@16 >/dev/null && node server.js"
+    volumes:
+      - ./api/server.js:/app/server.js:ro
+    ports:
+      - "18090:18090"
+  httpbin:
+    image: mccutchen/go-httpbin:v2.15.0
+    ports:
+      - "18080:8080"
+  mqtt:
+    image: eclipse-mosquitto:2
+    command: sh -c "printf 'listener 1883\\nallow_anonymous true\\n' > /tmp/m.conf && mosquitto -c /tmp/m.conf"
+    ports:
+      - "18830:1883"
+  grpc:
+    image: moul/grpcbin
+    ports:
+      - "19000:9000"

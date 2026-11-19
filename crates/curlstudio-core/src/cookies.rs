@@ -14,15 +14,18 @@ fn path() -> std::path::PathBuf {
 
 pub fn load() -> CookieStore {
     match std::fs::File::open(path()) {
-        Ok(f) => cookie_store::serde::json::load_all(std::io::BufReader::new(f))
-            .unwrap_or_default(),
+        Ok(f) => {
+            cookie_store::serde::json::load_all(std::io::BufReader::new(f)).unwrap_or_default()
+        }
         Err(_) => CookieStore::default(),
     }
 }
 
 pub fn save() -> Result<()> {
     let jar = cookie_jar();
-    let store = jar.lock().map_err(|_| Error::Invalid("cookie jar poisoned".into()))?;
+    let store = jar
+        .lock()
+        .map_err(|_| Error::Invalid("cookie jar poisoned".into()))?;
     let mut buf = Vec::new();
     cookie_store::serde::json::save_incl_expired_and_nonpersistent(&store, &mut buf)
         .map_err(|e| Error::Invalid(e.to_string()))?;
@@ -107,7 +110,13 @@ pub fn clear(domain: Option<&str>) -> Result<()> {
                 let doomed: Vec<(String, String, String)> = store
                     .iter_any()
                     .filter(|c| c.domain.as_cow().map(|x| x == d).unwrap_or(false))
-                    .map(|c| (d.to_string(), c.path.as_ref().to_string(), c.name().to_string()))
+                    .map(|c| {
+                        (
+                            d.to_string(),
+                            c.path.as_ref().to_string(),
+                            c.name().to_string(),
+                        )
+                    })
                     .collect();
                 for (d, p, n) in doomed {
                     store.remove(&d, &p, &n);
@@ -122,8 +131,8 @@ pub fn clear(domain: Option<&str>) -> Result<()> {
 pub fn set(domain: &str, cookie: &str) -> Result<()> {
     let url = url::Url::parse(&format!("https://{}/", domain.trim_start_matches('.')))
         .map_err(|e| Error::Invalid(format!("domain: {e}")))?;
-    let raw = RawCookie::parse(cookie.to_string())
-        .map_err(|e| Error::Invalid(format!("cookie: {e}")))?;
+    let raw =
+        RawCookie::parse(cookie.to_string()).map_err(|e| Error::Invalid(format!("cookie: {e}")))?;
     cookie_jar()
         .lock()
         .unwrap()

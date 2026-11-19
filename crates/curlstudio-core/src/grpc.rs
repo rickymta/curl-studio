@@ -59,7 +59,11 @@ pub struct SourceInfo {
     pub services: Vec<ServiceInfo>,
 }
 
-fn describe_pool(source_id: String, pool: &DescriptorPool, only: Option<&HashSet<String>>) -> SourceInfo {
+fn describe_pool(
+    source_id: String,
+    pool: &DescriptorPool,
+    only: Option<&HashSet<String>>,
+) -> SourceInfo {
     let mut services: Vec<ServiceInfo> = pool
         .services()
         .filter(|s| only.map(|o| o.contains(s.full_name())).unwrap_or(true))
@@ -82,7 +86,10 @@ fn describe_pool(source_id: String, pool: &DescriptorPool, only: Option<&HashSet
         })
         .collect();
     services.sort_by(|a, b| a.name.cmp(&b.name));
-    SourceInfo { source_id, services }
+    SourceInfo {
+        source_id,
+        services,
+    }
 }
 
 /// Compile `.proto` files. `includes` defaults to each file's directory.
@@ -127,7 +134,10 @@ fn default_timeout() -> u64 {
 async fn channel(t: &Target) -> Result<Channel> {
     crate::http::init_tls();
     let raw = t.url.trim();
-    let (tls, rest) = if let Some(r) = raw.strip_prefix("https://").or(raw.strip_prefix("grpcs://")) {
+    let (tls, rest) = if let Some(r) = raw
+        .strip_prefix("https://")
+        .or(raw.strip_prefix("grpcs://"))
+    {
         (true, r)
     } else if let Some(r) = raw.strip_prefix("http://").or(raw.strip_prefix("grpc://")) {
         (false, r)
@@ -135,7 +145,11 @@ async fn channel(t: &Target) -> Result<Channel> {
         (t.tls.unwrap_or(false), raw)
     };
     let tls = t.tls.unwrap_or(tls);
-    let uri = format!("{}://{}", if tls { "https" } else { "http" }, rest.trim_end_matches('/'));
+    let uri = format!(
+        "{}://{}",
+        if tls { "https" } else { "http" },
+        rest.trim_end_matches('/')
+    );
     let mut ep = Endpoint::from_shared(uri.clone())
         .map_err(|e| Error::Invalid(format!("gRPC URL `{uri}`: {e}")))?
         .connect_timeout(Duration::from_millis(t.timeout_ms.clamp(1000, 30_000)));
@@ -144,7 +158,9 @@ async fn channel(t: &Target) -> Result<Channel> {
             .tls_config(ClientTlsConfig::new().with_webpki_roots())
             .map_err(|e| Error::Invalid(format!("tls: {e}")))?;
     }
-    ep.connect().await.map_err(|e| Error::Network(crate::error::describe(&e)))
+    ep.connect()
+        .await
+        .map_err(|e| Error::Network(crate::error::describe(&e)))
 }
 
 fn metadata(list: &[KeyValue]) -> Result<MetadataMap> {
@@ -157,7 +173,9 @@ fn metadata(list: &[KeyValue]) -> Result<MetadataMap> {
         if k.ends_with("-bin") {
             let key = MetadataKey::from_bytes(k.as_bytes())
                 .map_err(|_| Error::Invalid(format!("metadata key `{k}`")))?;
-            let bytes = B64.decode(kv.value.trim()).unwrap_or_else(|_| kv.value.clone().into_bytes());
+            let bytes = B64
+                .decode(kv.value.trim())
+                .unwrap_or_else(|_| kv.value.clone().into_bytes());
             m.append_bin(key, MetadataValue::from_bytes(&bytes));
         } else {
             let key = MetadataKey::from_str(&k)
@@ -183,26 +201,29 @@ pub async fn reflect(t: Target) -> Result<SourceInfo> {
     let ch = channel(&t).await?;
     match reflect_v1(ch.clone(), &t).await {
         Ok(x) => Ok(x),
-        Err(e1) => reflect_v1alpha(ch, &t)
-            .await
-            .map_err(|e2| Error::Protocol(format!("server reflection failed: {e1}; v1alpha: {e2}"))),
+        Err(e1) => reflect_v1alpha(ch, &t).await.map_err(|e2| {
+            Error::Protocol(format!("server reflection failed: {e1}; v1alpha: {e2}"))
+        }),
     }
 }
 
 macro_rules! reflection_impl {
     ($name:ident, $pb:path) => {
         async fn $name(ch: Channel, t: &Target) -> Result<SourceInfo> {
-            use $pb as pb;
             use pb::server_reflection_client::ServerReflectionClient;
             use pb::server_reflection_request::MessageRequest;
             use pb::server_reflection_response::MessageResponse;
+            use $pb as pb;
             let mut client = ServerReflectionClient::new(ch);
             async fn ask(
                 client: &mut ServerReflectionClient<Channel>,
                 md: &MetadataMap,
                 req: MessageRequest,
             ) -> Result<MessageResponse> {
-                let msg = pb::ServerReflectionRequest { host: String::new(), message_request: Some(req) };
+                let msg = pb::ServerReflectionRequest {
+                    host: String::new(),
+                    message_request: Some(req),
+                };
                 let mut r = tonic::Request::new(tokio_stream::iter(vec![msg]));
                 *r.metadata_mut() = md.clone();
                 let mut stream = client
@@ -224,11 +245,18 @@ macro_rules! reflection_impl {
                 }
             }
             let md = metadata(&t.metadata)?;
-            let names: Vec<String> =
-                match ask(&mut client, &md, MessageRequest::ListServices(String::new())).await? {
-                    MessageResponse::ListServicesResponse(l) => l.service.into_iter().map(|s| s.name).collect(),
-                    _ => return Err(Error::Protocol("unexpected reflection reply".into())),
-                };
+            let names: Vec<String> = match ask(
+                &mut client,
+                &md,
+                MessageRequest::ListServices(String::new()),
+            )
+            .await?
+            {
+                MessageResponse::ListServicesResponse(l) => {
+                    l.service.into_iter().map(|s| s.name).collect()
+                }
+                _ => return Err(Error::Protocol("unexpected reflection reply".into())),
+            };
             let mut pool = DescriptorPool::global();
             let mut files: HashMap<String, prost_types::FileDescriptorProto> = HashMap::new();
             let mut queue: Vec<MessageRequest> = names
@@ -256,8 +284,10 @@ macro_rules! reflection_impl {
                     }
                 }
             }
-            let fresh: Vec<_> =
-                files.into_values().filter(|f| pool.get_file_by_name(f.name()).is_none()).collect();
+            let fresh: Vec<_> = files
+                .into_values()
+                .filter(|f| pool.get_file_by_name(f.name()).is_none())
+                .collect();
             pool.add_file_descriptor_protos(fresh)
                 .map_err(|e| Error::Protocol(format!("descriptor: {e}")))?;
             let only: HashSet<String> = names.into_iter().collect();
@@ -283,7 +313,12 @@ fn field_example(f: &FieldDescriptor, depth: usize) -> Value {
         Kind::Bool => json!(false),
         Kind::String => json!(""),
         Kind::Bytes => json!(""),
-        Kind::Enum(e) => json!(e.values().next().map(|v| v.name().to_string()).unwrap_or_default()),
+        Kind::Enum(e) => json!(
+            e.values()
+                .next()
+                .map(|v| v.name().to_string())
+                .unwrap_or_default()
+        ),
         Kind::Message(m) => {
             if f.is_map() {
                 let v = m.map_entry_value_field();
@@ -311,7 +346,9 @@ pub fn template(m: &MessageDescriptor, depth: usize) -> Value {
     let mut obj = serde_json::Map::new();
     for f in m.fields() {
         if f.containing_oneof().is_some()
-            && f.containing_oneof().map(|o| o.fields().next().map(|x| x.number()) != Some(f.number())).unwrap_or(false)
+            && f.containing_oneof()
+                .map(|o| o.fields().next().map(|x| x.number()) != Some(f.number()))
+                .unwrap_or(false)
         {
             continue; // only the first member of each oneof
         }
@@ -330,15 +367,23 @@ struct DynDecoder(MessageDescriptor);
 impl Encoder for DynEncoder {
     type Item = DynamicMessage;
     type Error = Status;
-    fn encode(&mut self, item: Self::Item, dst: &mut EncodeBuf<'_>) -> std::result::Result<(), Status> {
-        item.encode(dst).map_err(|e| Status::internal(e.to_string()))
+    fn encode(
+        &mut self,
+        item: Self::Item,
+        dst: &mut EncodeBuf<'_>,
+    ) -> std::result::Result<(), Status> {
+        item.encode(dst)
+            .map_err(|e| Status::internal(e.to_string()))
     }
 }
 
 impl Decoder for DynDecoder {
     type Item = DynamicMessage;
     type Error = Status;
-    fn decode(&mut self, src: &mut DecodeBuf<'_>) -> std::result::Result<Option<Self::Item>, Status> {
+    fn decode(
+        &mut self,
+        src: &mut DecodeBuf<'_>,
+    ) -> std::result::Result<Option<Self::Item>, Status> {
         let mut m = DynamicMessage::new(self.0.clone());
         m.merge(src).map_err(|e| Status::internal(e.to_string()))?;
         Ok(Some(m))
@@ -361,7 +406,9 @@ impl Codec for DynCodec {
 fn to_json(m: &DynamicMessage) -> String {
     let mut out = Vec::new();
     let mut ser = serde_json::Serializer::pretty(&mut out);
-    let opts = SerializeOptions::new().skip_default_fields(false).stringify_64_bit_integers(true);
+    let opts = SerializeOptions::new()
+        .skip_default_fields(false)
+        .stringify_64_bit_integers(true);
     match m.serialize_with_options(&mut ser, &opts) {
         Ok(()) => String::from_utf8_lossy(&out).to_string(),
         Err(e) => format!("<unserialisable: {e}>"),
@@ -418,8 +465,11 @@ pub async fn invoke(req: Invoke) -> Result<String> {
         .ok_or_else(|| Error::NotFound("proto source (reload the .proto files)".into()))?;
     let method = find_method(&pool, &req.method)?;
     let input = method.input();
-    let first: Vec<DynamicMessage> =
-        req.messages.iter().map(|m| from_json(&input, m)).collect::<Result<_>>()?;
+    let first: Vec<DynamicMessage> = req
+        .messages
+        .iter()
+        .map(|m| from_json(&input, m))
+        .collect::<Result<_>>()?;
     let md = metadata(&req.target.metadata)?;
     let ch = channel(&req.target).await?;
     let path = http::uri::PathAndQuery::from_str(&format!(
@@ -467,7 +517,12 @@ pub async fn invoke(req: Invoke) -> Result<String> {
         };
         let mut streaming = match resp {
             Ok(r) => {
-                s.push("info", "headers", "Response headers", json!({"headers": metadata_json(r.metadata())}));
+                s.push(
+                    "info",
+                    "headers",
+                    "Response headers",
+                    json!({"headers": metadata_json(r.metadata())}),
+                );
                 r.into_inner()
             }
             Err(st) => {
@@ -577,7 +632,12 @@ service Greeter { rpc Say(Hello) returns (Reply); rpc Chat(stream Hello) returns
         assert_eq!(say.template["ids"], json!(["0"]));
         assert_eq!(say.template["mood"], json!("HAPPY"));
         assert!(info.services[0].methods[1].client_streaming);
-        let pool = pools().lock().unwrap().get(&info.source_id).cloned().unwrap();
+        let pool = pools()
+            .lock()
+            .unwrap()
+            .get(&info.source_id)
+            .cloned()
+            .unwrap();
         let m = find_method(&pool, "demo.Greeter/Say").unwrap();
         let msg = from_json(&m.input(), r#"{"name":"x","ids":["5"]}"#).unwrap();
         assert!(to_json(&msg).contains("\"name\": \"x\""));

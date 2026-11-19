@@ -17,6 +17,12 @@ export const DEFAULT_SETTINGS: Settings = {
   maxBodyMb: 50,
   historyLimit: 300,
   autoSave: true,
+  discardUnsavedOnClose: false,
+  zoom: 1,
+  brightnessDark: 100,
+  brightnessLight: 100,
+  terminalShell: 'auto',
+  terminalCwd: '',
   fontSize: 13,
 };
 

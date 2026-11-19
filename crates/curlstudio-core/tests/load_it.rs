@@ -8,15 +8,27 @@ use serde_json::{Value, json};
 
 async fn server() -> String {
     let app = Router::new()
-        .route("/login", post(|| async { axum::Json(json!({"token": "abc123"})) }))
+        .route(
+            "/login",
+            post(|| async { axum::Json(json!({"token": "abc123"})) }),
+        )
         .route(
             "/items",
             get(|headers: axum::http::HeaderMap| async move {
-                let ok = headers.get("authorization").map(|v| v == "Bearer abc123").unwrap_or(false);
+                let ok = headers
+                    .get("authorization")
+                    .map(|v| v == "Bearer abc123")
+                    .unwrap_or(false);
                 if ok {
-                    (axum::http::StatusCode::OK, axum::Json(json!({"items": [1, 2, 3]})))
+                    (
+                        axum::http::StatusCode::OK,
+                        axum::Json(json!({"items": [1, 2, 3]})),
+                    )
                 } else {
-                    (axum::http::StatusCode::UNAUTHORIZED, axum::Json(json!({"error": "no"})))
+                    (
+                        axum::http::StatusCode::UNAUTHORIZED,
+                        axum::Json(json!({"error": "no"})),
+                    )
                 }
             }),
         );
@@ -60,16 +72,22 @@ async fn http_send_and_load_run() {
             {"metric": "checks", "stat": "rate", "op": ">", "value": 0.99}
         ]
     });
-    let dbg = curlstudio_core::dispatch("load.debug", json!({"scenario": scenario})).await.unwrap();
+    let dbg = curlstudio_core::dispatch("load.debug", json!({"scenario": scenario}))
+        .await
+        .unwrap();
     assert_eq!(dbg["steps"][1]["status"], 200, "{dbg}");
     assert_eq!(dbg["steps"][0]["extracted"]["token"], "abc123");
 
-    let id = curlstudio_core::dispatch("load.start", json!({"scenario": scenario})).await.unwrap();
+    let id = curlstudio_core::dispatch("load.start", json!({"scenario": scenario}))
+        .await
+        .unwrap();
     let id = id.as_str().unwrap().to_string();
     let mut last: Value = Value::Null;
     for _ in 0..100 {
         tokio::time::sleep(Duration::from_millis(200)).await;
-        last = curlstudio_core::dispatch("load.status", json!({"id": id})).await.unwrap();
+        last = curlstudio_core::dispatch("load.status", json!({"id": id}))
+            .await
+            .unwrap();
         if last["done"] == true {
             break;
         }
@@ -83,6 +101,8 @@ async fn http_send_and_load_run() {
     assert_eq!(s["steps"].as_array().unwrap().len(), 2);
     assert!(run["timeline"].as_array().unwrap().len() >= 2);
     // Saved to the store.
-    let saved = curlstudio_core::dispatch("store.get", json!({"kind": "loadRuns", "id": id})).await.unwrap();
+    let saved = curlstudio_core::dispatch("store.get", json!({"kind": "loadRuns", "id": id}))
+        .await
+        .unwrap();
     assert_eq!(saved["id"], id);
 }

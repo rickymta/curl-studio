@@ -42,7 +42,7 @@ export function makeItem(kind: NewKind, name?: string): PmItem {
       const ext: ProtocolExt = { kind };
       if (kind === 'ws') ext.ws = { messages: [] };
       if (kind === 'grpc') ext.grpc = { protoFiles: [], useReflection: true, message: '{}' };
-      if (kind === 'mqtt') ext.mqtt = { topics: [{ topic: '#', qos: 0 }], publishTopic: 'test/topic', publishQos: 0, cleanSession: true, keepAlive: 30 };
+      if (kind === 'mqtt') ext.mqtt = { topics: [{ topic: 'test/#', qos: 0 }], publishTopic: 'test/topic', publishQos: 0, cleanSession: true, keepAlive: 30 };
       it['x-curlstudio'] = ext;
       return it;
     }

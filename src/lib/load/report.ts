@@ -41,7 +41,7 @@ export function htmlReport(run: RunRecord, theme: 'light' | 'dark' = 'light'): s
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${esc(run.name)} – load test report</title>
+<title>${esc(/load test/i.test(run.name) ? run.name : `${run.name} – load test`)} report</title>
 <style>${collectCss()}
 body { overflow: auto !important; user-select: text !important; background: var(--background); }
 .report { max-width: 1240px; margin: 0 auto; padding: 24px; }

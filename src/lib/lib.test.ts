@@ -20,6 +20,12 @@ const settings: Settings = {
   maxBodyMb: 50,
   historyLimit: 100,
   autoSave: true,
+  discardUnsavedOnClose: false,
+  zoom: 1,
+  brightnessDark: 100,
+  brightnessLight: 100,
+  terminalShell: 'auto',
+  terminalCwd: '',
   fontSize: 13,
 };
 

@@ -256,7 +256,9 @@ impl Metrics {
     fn bucket(&mut self, sec: u64) -> &mut Bucket {
         // Late samples for an already flushed second land in the oldest open one.
         let first_open = self.timeline.last().map(|p| p.t + 1).unwrap_or(0);
-        self.open.entry(sec.max(first_open)).or_insert_with(Bucket::new)
+        self.open
+            .entry(sec.max(first_open))
+            .or_insert_with(Bucket::new)
     }
 
     pub fn record(&mut self, sec: u64, s: Sample) {
@@ -266,7 +268,10 @@ impl Metrics {
         } else {
             (s.duration_ms <= apdex_t, s.duration_ms <= 4.0 * apdex_t)
         };
-        let row = HEAT_BOUNDS_MS.iter().position(|b| s.duration_ms <= *b).unwrap_or(HEAT_ROWS - 1);
+        let row = HEAT_BOUNDS_MS
+            .iter()
+            .position(|b| s.duration_ms <= *b)
+            .unwrap_or(HEAT_ROWS - 1);
         {
             let b = self.bucket(sec);
             b.requests += 1;
@@ -300,7 +305,10 @@ impl Metrics {
         } else if tol {
             self.apdex_t += 1;
         }
-        let a = self.steps.entry(s.step.to_string()).or_insert_with(StepAgg::new);
+        let a = self
+            .steps
+            .entry(s.step.to_string())
+            .or_insert_with(StepAgg::new);
         a.count += 1;
         a.failures += s.failed as u64;
         a.bytes_in += s.bytes_in;
@@ -333,9 +341,15 @@ impl Metrics {
         } else {
             self.checks_fail += 1;
         }
-        let c = self.checks.entry((step.to_string(), name.to_string())).or_insert_with(|| {
-            CheckStat { step: step.to_string(), name: name.to_string(), pass: 0, fail: 0 }
-        });
+        let c = self
+            .checks
+            .entry((step.to_string(), name.to_string()))
+            .or_insert_with(|| CheckStat {
+                step: step.to_string(),
+                name: name.to_string(),
+                pass: 0,
+                fail: 0,
+            });
         if ok {
             c.pass += 1;
         } else {
@@ -374,7 +388,11 @@ impl Metrics {
         }
     }
 
-    pub fn summary(&self, names: &HashMap<String, (String, String, String)>, elapsed_s: f64) -> Summary {
+    pub fn summary(
+        &self,
+        names: &HashMap<String, (String, String, String)>,
+        elapsed_s: f64,
+    ) -> Summary {
         let elapsed = elapsed_s.max(0.001);
         let lat = stats(&self.lat);
         let total = self.requests.max(1) as f64;
@@ -459,8 +477,20 @@ fn point(t: u64, b: Bucket) -> Point {
         .steps
         .into_iter()
         .map(|(k, v)| {
-            let avg = if v.count > 0 { v.sum_ms / v.count as f64 } else { 0.0 };
-            (k, StepPoint { count: v.count, failures: v.failures, avg, max: v.max_ms })
+            let avg = if v.count > 0 {
+                v.sum_ms / v.count as f64
+            } else {
+                0.0
+            };
+            (
+                k,
+                StepPoint {
+                    count: v.count,
+                    failures: v.failures,
+                    avg,
+                    max: v.max_ms,
+                },
+            )
         })
         .collect();
     Point {
@@ -481,7 +511,11 @@ fn point(t: u64, b: Bucket) -> Point {
         p90: s.p90,
         p95: s.p95,
         p99: s.p99,
-        wait_avg: if b.requests > 0 { b.wait_sum / b.requests as f64 } else { 0.0 },
+        wait_avg: if b.requests > 0 {
+            b.wait_sum / b.requests as f64
+        } else {
+            0.0
+        },
         apdex: (b.requests > 0)
             .then(|| (b.apdex_s as f64 + b.apdex_t as f64 / 2.0) / b.requests as f64),
         status: b.status,
@@ -519,7 +553,11 @@ fn distribution(h: &Histogram<u64>) -> Vec<Bin> {
     }
     let over = h.count_between(hi + 1, h.max().max(hi + 1));
     if over > 0 {
-        out.push(Bin { from: hi as f64 / 1000.0, to: h.max() as f64 / 1000.0, count: over });
+        out.push(Bin {
+            from: hi as f64 / 1000.0,
+            to: h.max() as f64 / 1000.0,
+            count: over,
+        });
     }
     out
 }

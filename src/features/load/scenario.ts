@@ -2,7 +2,8 @@
 import { buildSpec } from '@/lib/build';
 import { contextFor } from '@/lib/execute';
 import type { EngineStep, LoadOptions, Profile, Scenario, ScenarioDoc, ScenarioStep, Threshold } from '@/lib/load/types';
-import { findItem, flattenRequests, itemProtocol, uid } from '@/lib/postman';
+import { extractorsFromScript } from '@/lib/load/scriptExtract';
+import { findItem, flattenRequests, itemProtocol, scriptOf, uid } from '@/lib/postman';
 import type { PmItem } from '@/lib/types';
 import { flatten } from '@/lib/vars';
 import { useTabs } from '@/stores/tabs';
@@ -185,7 +186,9 @@ export function stepFromItem(collectionId: string, item: PmItem): ScenarioStep {
     collectionId,
     itemId: item.id,
     checks: defaultChecks(),
-    extract: [],
+    // Values the request's test script saves (token, ids) become extractors, since load tests
+    // don't run scripts.
+    extract: extractorsFromScript(scriptOf(item.event, 'test')),
     thinkMs: 0,
   };
 }
@@ -210,6 +213,8 @@ export function scenarioFromCollection(collectionId: string, folderId: string | 
   const name = itemIds?.length === 1 ? `${http[0]!.name} – load test` : `${folderId ? (findItem(c.item, folderId)?.item.name ?? c.info.name) : c.info.name} – load test`;
   const sc = newScenario(name, http.map((it) => stepFromItem(collectionId, it)));
   ws.saveScenario(sc);
+  const converted = sc.steps.reduce((n, st) => n + st.extract.length, 0);
+  if (converted) toast('info', `${converted} variable${converted > 1 ? 's' : ''} saved by test scripts turned into extractors (load tests don't run scripts)`);
   useTabs.getState().open({ id: uid(), kind: 'scenario', scenarioId: sc.id });
 }
 

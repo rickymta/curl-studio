@@ -52,12 +52,20 @@ export function Split({
         {a}
       </div>
       <div
+        role="separator"
+        aria-orientation={vertical ? 'horizontal' : 'vertical'}
+        aria-label="Resize panes"
+        title="Drag to resize · double-click to reset"
         onPointerDown={onDown}
-        className={cn(
-          'shrink-0 bg-border transition-colors hover:bg-accent',
-          vertical ? 'h-px cursor-row-resize py-[2px] bg-clip-content' : 'w-px cursor-col-resize px-[2px] bg-clip-content',
-        )}
-      />
+        onDoubleClick={() => {
+          setRatio(initial);
+          if (key) localStorage.removeItem(key);
+        }}
+        className={cn('group relative z-10 shrink-0', vertical ? 'h-px cursor-row-resize' : 'w-px cursor-col-resize')}
+      >
+        {/* 1px line, 7px grab area */}
+        <div className={cn('absolute bg-border transition-colors group-hover:bg-accent', vertical ? 'inset-x-0 -top-[3px] h-[7px] bg-clip-content py-[3px]' : 'inset-y-0 -left-[3px] w-[7px] bg-clip-content px-[3px]')} />
+      </div>
       <div className="min-h-0 min-w-0 overflow-hidden" style={{ flex: `${1 - ratio} 1 0` }}>
         {b}
       </div>

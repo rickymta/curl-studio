@@ -1,4 +1,4 @@
-import { Copy, FileUp, FolderOpen, Trash2 } from 'lucide-react';
+import { Copy, FileUp, SquareTerminal, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { CodeEditor } from '@/components/CodeEditor';
@@ -7,14 +7,20 @@ import { buildSpec } from '@/lib/build';
 import { LANGUAGES } from '@/lib/codegen';
 import { contextFor } from '@/lib/execute';
 import { api } from '@/lib/ipc';
-import { copyText, revealPath } from '@/lib/native';
+import { copyText } from '@/lib/native';
 import { clone, findItem, isFolder, uid } from '@/lib/postman';
-import type { CookieInfo, PmItem, Settings } from '@/lib/types';
+import type { CookieInfo, PmItem } from '@/lib/types';
 import { useTabs } from '@/stores/tabs';
 import { errText, toast, useUi } from '@/stores/ui';
 import { createCollection, useWorkspace } from '@/stores/workspace';
 
-import { exportEverything, importFiles, importJsonText } from '../actions';
+import { importFiles, importJsonText } from '../actions';
+import { saveTab } from '../request/common';
+import { HelpDialog } from '../shell/HelpDialog';
+import { shellFamily, typeInTerminal } from '../terminal/runtime';
+import { SettingsDialog } from '../shell/SettingsDialog';
+import { ActivityWindow, ShortcutsWindow } from '../shell/Windows';
+import { nextUnsaved } from '../tabs/close';
 
 function ImportDialog({ initial }: { initial?: string }) {
   const [text, setText] = useState(initial ?? '');
@@ -87,6 +93,30 @@ function CodeDialog({ tabId }: { tabId: string }) {
     const { spec } = buildSpec(tab.draft.request ?? {}, { collection: ctx.collection, parents: ctx.parents, scopes, settings: ctx.settings, behavior: tab.draft.protocolProfileBehavior });
     return (LANGUAGES.find((l) => l.id === lang) ?? LANGUAGES[0]!).gen(spec);
   }, [tab, lang, resolveVars]);
+  /** cURL quoted for the in-app terminal's shell, joined onto one line (typed, not run). */
+  const runInTerminal = () => {
+    if (!tab || tab.kind !== 'request') return;
+    const ctx = contextFor(tab.collectionId, tab.itemId);
+    const { spec } = buildSpec(tab.draft.request ?? {}, { collection: ctx.collection, parents: ctx.parents, scopes: ctx.scopes, settings: ctx.settings, behavior: tab.draft.protocolProfileBehavior });
+    // A shell would take newlines inside the body as Enter; a JSON body goes on one line instead
+    // (same data, whitespace is not significant in JSON).
+    if (spec.body.mode === 'raw') {
+      try {
+        spec.body = { ...spec.body, raw: JSON.stringify(JSON.parse(spec.body.raw)) };
+      } catch {
+        /* not JSON: keep as is */
+      }
+    }
+    const fam = shellFamily();
+    const id = fam === 'powershell' ? 'curl-ps' : fam === 'cmd' ? 'curl-cmd' : 'curl';
+    // Line continuations (\ in bash, ` in PowerShell, ^ in cmd) become spaces: one line to edit.
+    const cmd = (LANGUAGES.find((l) => l.id === id) ?? LANGUAGES[0]!)
+      .gen(spec)
+      .replace(/\s*[\\`^]\r?\n\s*/g, ' ')
+      .trim();
+    close();
+    void typeInTerminal(cmd);
+  };
   return (
     <Modal open onClose={close} title="Code snippet" width={820}>
       <div className="flex gap-3">
@@ -110,6 +140,9 @@ function CodeDialog({ tabId }: { tabId: string }) {
           <div className="flex items-center gap-2">
             <Checkbox checked={resolveVars} onChange={setResolveVars} label="Resolve variables" />
             <div className="flex-1" />
+            <Button onClick={runInTerminal} title="Type the cURL command into the in-app terminal (press Enter there to run it)">
+              <SquareTerminal className="size-3.5" /> Run in terminal
+            </Button>
             <Button variant="primary" onClick={() => copyText(code).then(() => toast('success', 'Copied to clipboard'))}>
               <Copy className="size-3.5" /> Copy
             </Button>
@@ -187,70 +220,7 @@ function CookiesDialog() {
   );
 }
 
-function SettingsDialog() {
-  const s = useWorkspace((x) => x.settings);
-  const [v, setV] = useState<Settings>(s);
-  const [dataDir, setDataDir] = useState('');
-  useEffect(() => {
-    api.info().then((i) => setDataDir(i.dataDir)).catch(() => undefined);
-  }, []);
-  const close = () => useUi.getState().show(null);
-  const set = <K extends keyof Settings>(k: K, val: Settings[K]) => setV({ ...v, [k]: val });
-  return (
-    <Modal open onClose={close} title="Settings" width={620}>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Theme">
-          <Select value={v.theme} onChange={(x) => set('theme', x as Settings['theme'])} options={['dark', 'light', 'system']} />
-        </Field>
-        <Field label="Request timeout (ms)">
-          <Input type="number" value={v.timeoutMs} onChange={(e) => set('timeoutMs', Number(e.target.value) || 30000)} />
-        </Field>
-        <Field label="Max redirects">
-          <Input type="number" value={v.maxRedirects} onChange={(e) => set('maxRedirects', Number(e.target.value) || 10)} />
-        </Field>
-        <Field label="Max response size shown (MB)">
-          <Input type="number" value={v.maxBodyMb} onChange={(e) => set('maxBodyMb', Number(e.target.value) || 50)} />
-        </Field>
-        <Field label="Proxy" hint="Empty = system proxy · none = direct · http://host:port · socks5://…" className="col-span-2">
-          <Input value={v.proxy} onChange={(e) => set('proxy', e.target.value)} />
-        </Field>
-        <Field label="History entries kept">
-          <Input type="number" value={v.historyLimit} onChange={(e) => set('historyLimit', Number(e.target.value) || 300)} />
-        </Field>
-        <div />
-        <Checkbox checked={v.followRedirects} onChange={(x) => set('followRedirects', x)} label="Follow redirects" />
-        <Checkbox checked={v.verifyTls} onChange={(x) => set('verifyTls', x)} label="SSL certificate verification" />
-        <Checkbox checked={v.cookies} onChange={(x) => set('cookies', x)} label="Use the cookie jar" />
-        <Checkbox checked={v.http1Only} onChange={(x) => set('http1Only', x)} label="Force HTTP/1.1" />
-      </div>
-      <div className="mt-4 flex items-center gap-2 border-t border-border pt-3 text-[12px] text-muted-foreground">
-        <span className="min-w-0 flex-1 truncate" title={dataDir}>
-          Workspace: <span className="font-mono">{dataDir}</span>
-        </span>
-        <Button size="sm" variant="ghost" onClick={() => revealPath(dataDir)}>
-          <FolderOpen className="size-3.5" /> Open
-        </Button>
-        <Button size="sm" variant="ghost" onClick={exportEverything}>
-          Export all (Postman dump)
-        </Button>
-      </div>
-      <div className="mt-3 flex justify-end gap-2">
-        <Button onClick={close}>Cancel</Button>
-        <Button
-          variant="primary"
-          onClick={() => {
-            useWorkspace.getState().saveSettings(v);
-            close();
-          }}
-        >
-          Save
-        </Button>
-      </div>
-    </Modal>
-  );
-}
-
-function SaveAsDialog({ tabId }: { tabId: string }) {
+function SaveAsDialog({ tabId, then }: { tabId: string; then?: () => void }) {
   const tab = useTabs((s) => s.tabs.find((t) => t.id === tabId));
   const collections = useWorkspace((s) => s.collections);
   const order = useWorkspace((s) => s.order);
@@ -287,6 +257,7 @@ function SaveAsDialog({ tabId }: { tabId: string }) {
     useTabs.getState().markSaved(tab.id, target, item.id!);
     toast('success', 'Saved');
     close();
+    then?.();
   };
   return (
     <Modal open onClose={close} title="Save request">
@@ -341,6 +312,59 @@ function PromptDialog({ d }: { d: Extract<NonNullable<ReturnType<typeof useUi.ge
   );
 }
 
+function UnsavedDialog({ tabIds }: { tabIds: string[] }) {
+  const [id, ...rest] = tabIds;
+  const tab = useTabs((s) => s.tabs.find((t) => t.id === id));
+  const settings = useWorkspace((s) => s.settings);
+  const [always, setAlways] = useState(false);
+  if (!tab || tab.kind !== 'request') return null;
+  const cancel = () => useUi.getState().show(null);
+  const remember = () => {
+    if (always) useWorkspace.getState().saveSettings({ ...settings, discardUnsavedOnClose: true });
+  };
+  const dontSave = () => {
+    remember();
+    useTabs.getState().close(tab.id);
+    // With "always discard" ticked, the rest of the queue closes without asking.
+    if (always) {
+      for (const r of rest) useTabs.getState().close(r);
+      useUi.getState().show(null);
+    } else nextUnsaved(rest);
+  };
+  const save = () => {
+    remember();
+    const after = () => {
+      useTabs.getState().close(tab.id);
+      nextUnsaved(rest);
+    };
+    if (tab.collectionId && tab.itemId && useWorkspace.getState().collections[tab.collectionId]) {
+      saveTab(tab);
+      after();
+    } else {
+      useUi.getState().show({ kind: 'saveAs', tabId: tab.id, then: after });
+    }
+  };
+  return (
+    <Modal open onClose={cancel} title="Save changes?">
+      <div className="space-y-4">
+        <p className="text-[13px]">
+          <span className="font-semibold break-all">{tab.draft.name}</span> has unsaved changes. Save these changes to avoid losing your work.
+          {rest.length > 0 && <span className="text-muted-foreground"> ({rest.length} more tab{rest.length > 1 ? 's' : ''} after this one.)</span>}
+        </p>
+        <Checkbox checked={always} onChange={setAlways} label="Always discard unsaved changes when closing a tab" title="You can turn this back off in Settings" />
+        <div className="flex items-center gap-2">
+          <Button onClick={dontSave}>Don't save</Button>
+          <div className="flex-1" />
+          <Button onClick={cancel}>Cancel</Button>
+          <Button variant="primary" data-autofocus onClick={save}>
+            Save changes
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function Dialogs() {
   const d = useUi((s) => s.dialog);
   const close = () => useUi.getState().show(null);
@@ -353,9 +377,17 @@ export function Dialogs() {
     case 'cookies':
       return <CookiesDialog />;
     case 'settings':
-      return <SettingsDialog />;
+      return <SettingsDialog section={d.section} />;
+    case 'shortcuts':
+      return <ShortcutsWindow open onClose={close} />;
+    case 'activity':
+      return <ActivityWindow open onClose={close} />;
+    case 'help':
+      return <HelpDialog onClose={close} initialTab={d.tab} />;
     case 'saveAs':
-      return <SaveAsDialog tabId={d.tabId} />;
+      return <SaveAsDialog tabId={d.tabId} then={d.then} />;
+    case 'unsaved':
+      return <UnsavedDialog key={d.tabIds[0]} tabIds={d.tabIds} />;
     case 'prompt':
       return <PromptDialog key={d.title + d.value} d={d} />;
     case 'confirm':

@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CurlStudio Test Report</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --surface-2: #f0f2f5; --border: #dfe3e8;
+    --fg: #1b1f24; --fg-2: #4a5360; --muted: #6b7480;
+    --accent: #d9530f; --accent-soft: #fdebe1;
+    --good: #1a7f37; --good-soft: #e3f4e8;
+    --warn: #9a6700; --warn-soft: #fff4d6;
+    --bad: #c22a2a; --bad-soft: #fde7e7;
+    --info: #1f5fbf; --info-soft: #e5eefc;
+    --code: #f3f4f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1216; --surface: #171b21; --surface-2: #1e232b; --border: #2b313a;
+      --fg: #e7eaee; --fg-2: #b5bcc6; --muted: #8a93a0;
+      --accent: #f07a3a; --accent-soft: #3a2116;
+      --good: #4cc070; --good-soft: #15291c;
+      --warn: #e0b341; --warn-soft: #2e2611;
+      --bad: #ff6b6b; --bad-soft: #321718;
+      --info: #6ea8ff; --info-soft: #152237;
+      --code: #1e232b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1216; --surface: #171b21; --surface-2: #1e232b; --border: #2b313a;
+    --fg: #e7eaee; --fg-2: #b5bcc6; --muted: #8a93a0;
+    --accent: #f07a3a; --accent-soft: #3a2116;
+    --good: #4cc070; --good-soft: #15291c;
+    --warn: #e0b341; --warn-soft: #2e2611;
+    --bad: #ff6b6b; --bad-soft: #321718;
+    --info: #6ea8ff; --info-soft: #152237;
+    --code: #1e232b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 16px 64px; }
+  header.top { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 19px; margin: 40px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 15px; margin: 22px 0 8px; }
+  p { margin: 6px 0 10px; color: var(--fg-2); }
+  .sub { color: var(--muted); font-size: 13px; }
+  code, .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+  nav.toc a { color: var(--fg-2); text-decoration: none; font-size: 12.5px; border: 1px solid var(--border); background: var(--surface); padding: 3px 10px; border-radius: 999px; }
+  nav.toc a:hover { border-color: var(--accent); color: var(--accent); }
+  .btn { font: inherit; font-size: 12.5px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--fg); cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .tile .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .tile .v { font-size: 28px; font-weight: 650; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .tile .d { font-size: 12px; color: var(--fg-2); }
+  .verdict { display: flex; gap: 14px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--good); border-radius: 10px; padding: 14px 16px; margin: 14px 0; }
+  .verdict b { color: var(--fg); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin: 10px 0; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); font-size: 12px; color: var(--fg-2); font-weight: 600; position: sticky; top: 0; }
+  tr:last-child td { border-bottom: 0; }
+  .tablewrap { overflow-x: auto; border-radius: 10px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .b-pass { background: var(--good-soft); color: var(--good); }
+  .b-fixed { background: var(--info-soft); color: var(--info); }
+  .b-warn { background: var(--warn-soft); color: var(--warn); }
+  .b-fail { background: var(--bad-soft); color: var(--bad); }
+  .b-high { background: var(--bad-soft); color: var(--bad); }
+  .b-med { background: var(--warn-soft); color: var(--warn); }
+  .b-low { background: var(--surface-2); color: var(--fg-2); }
+  .b-new { background: var(--accent-soft); color: var(--accent); }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
+  .chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--fg-2); cursor: pointer; }
+  .chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  figure { margin: 10px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  figure img { display: block; width: 100%; height: auto; cursor: zoom-in; }
+  figcaption { font-size: 12.5px; color: var(--fg-2); padding: 8px 12px; border-top: 1px solid var(--border); }
+  .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.82); display: none; align-items: center; justify-content: center; z-index: 50; padding: 24px; cursor: zoom-out; }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+  select, textarea { font: inherit; font-size: 12.5px; color: var(--fg); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; }
+  textarea { width: 100%; min-height: 34px; resize: vertical; }
+  ul.tight { margin: 4px 0 8px 18px; padding: 0; color: var(--fg-2); }
+  ul.tight li { margin: 2px 0; }
+  .muted { color: var(--muted); }
+  .kbd { font-family: ui-monospace, monospace; font-size: 11.5px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--surface-2); }
+  .evalbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 12px; }
+  @media print { .no-print { display: none !important; } h2 { break-before: auto; } figure, tr { break-inside: avoid; } th { position: static; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="sub">Báo cáo kiểm thử · CurlStudio v0.1 (commit <code>1ac0ea7</code> + thay đổi chưa commit)</div>
+      <h1>CurlStudio — Báo cáo kiểm thử toàn diện</h1>
+      <div class="sub">Ngày 19/11/2026 · Kiểm thử trực tiếp qua trình duyệt (UI thật + backend Rust qua dev bridge) · API giả lập bằng Docker</div>
+    </div>
+    <div class="no-print" style="display:flex;gap:8px">
+      <button class="btn" id="themeBtn" type="button">Đổi giao diện sáng/tối</button>
+      <button class="btn" type="button" onclick="window.print()">In / PDF</button>
+    </div>
+  </header>
+
+  <nav class="toc no-print">
+    <a href="#tongquan">Tổng quan</a><a href="#tinhnang">Tính năng mới</a><a href="#moitruong">Môi trường</a>
+    <a href="#ketqua">Kết quả test</a><a href="#loidasua">Lỗi đã sửa</a><a href="#danhgia">Vấn đề &amp; đề xuất (đánh giá)</a>
+    <a href="#xuly"><b>Đợt 2: kết quả xử lý</b></a><a href="#chuatest">Chưa kiểm thử</a><a href="#chaylai">Chạy lại</a>
+  </nav>
+
+  <section id="tongquan">
+    <div class="tiles" id="tiles"></div>
+    <div class="verdict">
+      <div>
+        <b>Kết luận:</b> 4 nhóm tính năng mới (hộp thoại lưu khi đóng tab, popover biến môi trường, kéo chỉnh kích thước khung/cột, tìm kiếm &amp; thêm mới ở cột trái) hoạt động đúng như yêu cầu.
+        Toàn bộ luồng chính (HTTP, GraphQL, WebSocket, SSE, MQTT, gRPC, Runner, load test, import/export Postman và cURL) chạy đúng với API giả lập.
+        Trong lúc test, mình tìm ra <b id="fixedCount">7</b> lỗi và đã sửa ngay, rồi kiểm tra lại từng lỗi.
+        Còn <b id="openCount">0</b> vấn đề mức thấp/trung bình và một số đề xuất cải tiến đang chờ bạn đánh giá ở <a href="#danhgia">mục cuối</a>.
+      </div>
+    </div>
+  </section>
+
+  <section id="tinhnang">
+    <h2>1. Tính năng mới đã triển khai</h2>
+
+    <h3>1.1 Hộp thoại “Save changes?” khi đóng tab (giống Postman)</h3>
+    <ul class="tight">
+      <li>Áp dụng cho mọi cách đóng: nút ×, <span class="kbd">Ctrl</span>+<span class="kbd">W</span>, chuột giữa, menu chuột phải (Close / Close others / Close all).</li>
+      <li>Ba lựa chọn: <b>Don't save</b>, <b>Cancel</b>, <b>Save changes</b>. Với request chưa từng lưu, “Save changes” mở hộp thoại <i>Save request</i> (chọn collection/folder) rồi mới đóng tab.</li>
+      <li>Đóng nhiều tab: tab sạch đóng ngay, tab có thay đổi được hỏi lần lượt, kèm dòng báo “(N more tabs after this one)”.</li>
+      <li>Checkbox <b>Always discard unsaved changes when closing a tab</b>: lưu vào Settings, và tắt lại được trong Settings.</li>
+    </ul>
+    <div class="pair">
+      <figure><img src="__IMG_unsaved__" alt="Hộp thoại Save changes khi đóng tab"/><figcaption>Đóng tab “Login” khi có thay đổi chưa lưu.</figcaption></figure>
+      <figure><img src="__IMG_queue__" alt="Close all với hàng đợi"/><figcaption>Close all: tab sạch (Login) đã đóng, tab “Me” được hỏi, còn 1 tab chờ.</figcaption></figure>
+    </div>
+
+    <h3>1.2 Popover khi rê chuột lên biến <code>{{variable}}</code></h3>
+    <ul class="tight">
+      <li>Hiện giá trị hiện tại và nguồn (<b>E</b> Environment, <b>C</b> Collection, <b>G</b> Globals) theo đúng thứ tự ưu tiên khi gửi request.</li>
+      <li>Sửa trực tiếp: <span class="kbd">Enter</span> hoặc rời ô để lưu, <span class="kbd">Esc</span> để huỷ. Với biến môi trường, sửa vào <i>current value</i> nếu đã có, giống Postman.</li>
+      <li>Biến chưa định nghĩa: viền đỏ (trên thanh URL và trong bảng), popover báo “Unresolved” và cho chọn scope để thêm biến mới.</li>
+      <li>Biến động (<code>{{$guid}}</code>, …): hiện mô tả kèm giá trị ví dụ. Có liên kết “Open environment / collection” để mở trình chỉnh sửa tương ứng.</li>
+      <li>Có ở mọi ô một dòng hỗ trợ biến: URL, Params, Headers, form body, Auth.</li>
+    </ul>
+    <div class="pair">
+      <figure><img src="__IMG_popover__" alt="Popover biến baseUrl"/><figcaption><code>{{baseUrl}}</code>: giá trị đang dùng, nguồn Environment.</figcaption></figure>
+      <figure><img src="__IMG_unresolved__" alt="Biến chưa định nghĩa"/><figcaption><code>{{traceId}}</code> chưa định nghĩa: viền đỏ ở URL và bảng Params, popover cho chọn scope để thêm.</figcaption></figure>
+    </div>
+
+    <h3>1.3 Điều chỉnh kích thước khung và cột</h3>
+    <ul class="tight">
+      <li>Kéo vạch chia Request/Response để đổi độ cao (vùng nắm 7px, nhấp đúp để đặt lại, nhớ theo từng loại editor).</li>
+      <li>Kéo đổi độ rộng các cột Key / Type / Description trong mọi bảng key-value (Params, Headers, form-data, …). Độ rộng được nhớ và dùng chung giữa các bảng; nhấp đúp để đặt lại.</li>
+      <li>Cột trái kéo được độ rộng như trước.</li>
+    </ul>
+    <figure><img src="__IMG_resize__" alt="Kéo cột và khung"/><figcaption>Sau khi thu hẹp cột Key, nới rộng cột Description và kéo khung Response xuống thấp hơn.</figcaption></figure>
+
+    <h3>1.4 Cột trái: tìm kiếm và thêm mới</h3>
+    <ul class="tight">
+      <li>Ô tìm kiếm có phím tắt <span class="kbd">Ctrl</span>+<span class="kbd">K</span>, nút xoá, <span class="kbd">Esc</span> để xoá. Chỗ khớp được tô sáng, và có thông báo khi không có kết quả.</li>
+      <li>Collection/folder khớp tên thì hiện toàn bộ request bên trong. Tìm theo cả tên lẫn URL.</li>
+      <li>Nút <b>+</b> mở menu theo ngữ cảnh: New collection, các loại request (HTTP, GraphQL, WS, SSE, gRPC, MQTT), Import; ở tab Environments là New/Import environment; ở tab Load là New load test.</li>
+      <li>Nút <b>+</b> hiện khi rê chuột trên từng collection/folder để thêm nhanh request hoặc folder con.</li>
+      <li>Trạng thái mở/đóng folder được nhớ qua lần tìm kiếm và lần khởi động lại.</li>
+    </ul>
+    <div class="pair">
+      <figure><img src="__IMG_search__" alt="Tìm kiếm"/><figcaption>Tìm “auth”: tô sáng chỗ khớp, folder “0. Auth” hiện đủ request con.</figcaption></figure>
+      <figure><img src="__IMG_newmenu__" alt="Menu New"/><figcaption>Menu “+” ở đầu cột trái.</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="moitruong">
+    <h2>2. Môi trường kiểm thử</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3 style="margin-top:0">Dịch vụ giả lập (Docker Compose)</h3>
+        <div class="tablewrap"><table>
+          <tr><th>Dịch vụ</th><th>Cổng</th><th>Dùng để test</th></tr>
+          <tr><td>Mock API (Node 22, <code>testing/mock/api/server.js</code>)</td><td class="mono">18090</td><td>REST CRUD + đăng nhập lấy token, 401/403/404/422, GraphQL, WebSocket, SSE, echo, dữ liệu lớn, Unicode, redirect</td></tr>
+          <tr><td>go-httpbin v2.15</td><td class="mono">18080</td><td>Basic/Digest auth, gzip, redirect, cookie, ảnh, delay, mã trạng thái</td></tr>
+          <tr><td>Eclipse Mosquitto 2</td><td class="mono">18830</td><td>MQTT publish/subscribe</td></tr>
+          <tr><td>grpcbin</td><td class="mono">19000</td><td>gRPC server reflection, unary</td></tr>
+        </table></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Ứng dụng dưới test</h3>
+        <ul class="tight">
+          <li>UI: Vite dev server <code>localhost:1450</code>, mở trong trình duyệt tích hợp (1440×900).</li>
+          <li>Backend: <code>curlstudio-bridge</code> (đúng core Rust của bản desktop) trên <code>127.0.0.1:1451</code>.</li>
+          <li>Dữ liệu tách riêng qua <code>CURLSTUDIO_HOME</code> (không đụng vào workspace thật).</li>
+          <li>Dữ liệu test: <code>testing/fixtures/CurlStudio-Mock.postman_collection.json</code> (27 request, 4 folder, auth kế thừa, script) và <code>Mock-Local.postman_environment.json</code>, import bằng kéo-thả.</li>
+          <li>Kiểm tra tự động: <span id="autoTests">vitest 15/15, cargo test 11/11, tsc sạch, eslint 0 lỗi</span>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="ketqua">
+    <h2>3. Kết quả kiểm thử chi tiết</h2>
+    <div class="filters no-print" id="tcFilters"></div>
+    <div class="tablewrap"><table id="tcTable">
+      <thead><tr><th>ID</th><th>Khu vực</th><th>Kịch bản</th><th>Kết quả thực tế</th><th>Trạng thái</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+
+    <h3>Một số ảnh chụp khi kiểm thử</h3>
+    <div class="pair">
+      <figure><img src="__IMG_login__" alt="Login"/><figcaption>POST Login: 200, 2/2 test qua, token được lưu vào environment.</figcaption></figure>
+      <figure><img src="__IMG_runner__" alt="Runner"/><figcaption>Runner: 27 request, 7/7 test qua; 2 lỗi là 2 request mới chưa có URL (đúng như mong đợi).</figcaption></figure>
+      <figure><img src="__IMG_graphql__" alt="GraphQL"/><figcaption>GraphQL: query + variables, tải schema qua introspection (7 type).</figcaption></figure>
+      <figure><img src="__IMG_curl__" alt="cURL import"/><figcaption>Dán lệnh cURL: method, header, body, <code>-u</code> → Basic auth đều đúng.</figcaption></figure>
+      <figure><img src="__IMG_ws__" alt="WebSocket"/><figcaption>WebSocket: kết nối, nhận welcome, echo.</figcaption></figure>
+      <figure><img src="__IMG_sse__" alt="SSE"/><figcaption>SSE: nhận 5 event <code>tick</code>, stream kết thúc sạch.</figcaption></figure>
+      <figure><img src="__IMG_mqtt__" alt="MQTT"/><figcaption>MQTT: subscribe, publish, nhận lại message.</figcaption></figure>
+      <figure><img src="__IMG_grpc__" alt="gRPC"/><figcaption>gRPC: reflection tải 34 method; <code>addsvc.Sum(2, 40)</code> → <code>42</code>.</figcaption></figure>
+      <figure><img src="__IMG_loadlive__" alt="Load live"/><figcaption>Load test đang chạy: khoảng 10k request/giây, dashboard cập nhật mỗi giây.</figcaption></figure>
+      <figure><img src="__IMG_export__" alt="Exported report"/><figcaption>Báo cáo HTML xuất từ load test (đã có bản sửa biểu đồ).</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="loidasua">
+    <h2>4. Lỗi tìm thấy và đã sửa trong lúc kiểm thử</h2>
+    <p>Mỗi lỗi đều được tái hiện trên UI, sửa trong mã nguồn, rồi kiểm tra lại trên UI.</p>
+    <div class="tablewrap"><table id="fixedTable">
+      <thead><tr><th>ID</th><th>Mức độ</th><th>Mô tả</th><th>Nguyên nhân</th><th>Cách sửa</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <h3>Trước và sau</h3>
+    <div class="pair">
+      <figure><img src="__IMG_chartbug__" alt="Biểu đồ bị ép"/><figcaption><b>B3 trước:</b> đường threshold 1000 ms kéo trục Y lên 1 s, dữ liệu (≈3 ms) bị ép sát đáy.</figcaption></figure>
+      <figure><img src="__IMG_chartfix__" alt="Biểu đồ đã sửa"/><figcaption><b>B3 sau:</b> trục Y theo dữ liệu, threshold ngoài thang đo hiện thành ghi chú ▲.</figcaption></figure>
+      <figure><img src="__IMG_collapsebug__" alt="Folder bị đóng"/><figcaption><b>B1 trước:</b> xoá ô tìm kiếm xong thì các folder đang mở bị đóng hết.</figcaption></figure>
+      <figure><img src="__IMG_quickaddfix__" alt="Quick add đã sửa"/><figcaption><b>B2 sau:</b> thêm request qua nút + của folder, folder vẫn mở và request mới được chọn.</figcaption></figure>
+      <figure><img src="__IMG_tabbug__" alt="Tab bị cắt"/><figcaption><b>B5 trước:</b> tab đang mở (WebSocket) bị cắt ở mép phải, không tự cuộn vào tầm nhìn.</figcaption></figure>
+      <figure><img src="__IMG_shiftbug__" alt="Layout shift"/><figcaption><b>B6 trước:</b> preset chuyển sang Custom làm form dịch lên, cú click thứ hai rơi nhầm ô (Duration thành “1020”).</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="danhgia">
+    <h2>5. Vấn đề còn mở &amp; đề xuất — phần để bạn đánh giá</h2>
+    <p>Mỗi dòng có ô chọn quyết định và ghi chú. Lựa chọn được lưu trong trình duyệt này; nút “Xuất đánh giá” tạo bản Markdown để gửi lại.</p>
+    <div class="evalbar no-print">
+      <button class="btn primary" type="button" id="exportEval">Xuất đánh giá (Markdown)</button>
+      <button class="btn" type="button" id="copyEval">Sao chép</button>
+      <span class="muted" id="evalStatus"></span>
+    </div>
+    <div class="filters no-print" id="evFilters"></div>
+    <div class="tablewrap"><table id="evalTable">
+      <thead><tr><th>ID</th><th>Loại / mức</th><th>Vấn đề hoặc đề xuất</th><th>Chi tiết &amp; hướng xử lý</th><th style="min-width:190px">Đánh giá của bạn</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <figure style="max-width:640px"><img src="__IMG_connerr__" alt="Lỗi kết nối"/><figcaption>V1/S1: kết nối bị từ chối mất 2–4 giây mới báo, thông báo lỗi còn thô.</figcaption></figure>
+  </section>
+
+  <section id="xuly">
+    <h2>6. Đợt 2 — kết quả xử lý sau đánh giá (19/11/2026)</h2>
+    <div class="verdict" style="border-left-color: var(--info)">
+      <div>
+        <b>Tóm tắt:</b> theo yêu cầu “sửa toàn bộ lỗi, thực hiện toàn bộ đề xuất”: <b id="r2done">0</b> mục đã hoàn tất, <b id="r2partial">0</b> mục cải thiện một phần (giới hạn của hệ điều hành, xem V1).
+        Đợt này cũng đưa các tính năng của GitStudio sang CurlStudio, và tìm/sửa thêm <b id="r2bugs">0</b> lỗi trong lúc kiểm thử.
+        Kiểm tra tự động: vitest 33/33, cargo test 22/22, tsc sạch, eslint 0 lỗi, build production và crate Tauri thành công.
+      </div>
+    </div>
+    <h3>6.1 Từng mục V/S đã làm gì và kiểm tra thế nào</h3>
+    <div class="tablewrap"><table id="resolvedTable">
+      <thead><tr><th>ID</th><th>Kết quả</th><th>Đã làm</th><th>Kiểm chứng</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <h3>6.2 Tính năng lấy từ GitStudio</h3>
+    <div class="tablewrap"><table id="gitstudioTable">
+      <thead><tr><th style="width:220px">Tính năng</th><th>Trong CurlStudio</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <h3>6.3 Lỗi tìm thấy và sửa thêm trong đợt 2</h3>
+    <div class="tablewrap"><table id="fixed2Table">
+      <thead><tr><th>ID</th><th>Mức độ</th><th>Mô tả</th><th>Nguyên nhân</th><th>Cách sửa</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <h3>6.4 Ảnh chụp đợt 2</h3>
+    <div class="pair">
+      <figure><img src="__IMG_r2_error__" alt="Lỗi kết nối thân thiện"/><figcaption>S1: “Connection refused by localhost:18099” kèm gợi ý; chi tiết gốc thu gọn. Thanh trạng thái mới ở đáy.</figcaption></figure>
+      <figure><img src="__IMG_r2_shortcuts__" alt="Keyboard Shortcuts"/><figcaption>Keyboard Shortcuts (Ctrl+/) đang lọc theo “zoom”.</figcaption></figure>
+      <figure><img src="__IMG_r2_settings__" alt="Settings Appearance"/><figcaption>Settings → Appearance: theme, độ sáng theo từng theme, zoom, cỡ chữ editor (đang ở theme Light).</figcaption></figure>
+      <figure><img src="__IMG_r2_runner__" alt="Runner log scale"/><figcaption>V5/S8: Runner dùng thang log, sắp xếp được, có bộ đếm Non-2xx và bộ lọc.</figcaption></figure>
+      <figure><img src="__IMG_r2_graphql__" alt="GraphQL errors"/><figcaption>S5: field không tồn tại bị gạch chân, thanh trạng thái báo số lỗi.</figcaption></figure>
+      <figure><img src="__IMG_r2_body_var__" alt="Biến trong body"/><figcaption>S3/S4: popover biến trong body JSON: Current/Initial value, secret bị che.</figcaption></figure>
+      <figure><img src="__IMG_r2_tabs__" alt="Tab ghim"/><figcaption>S6: tab Runner được ghim (biểu tượng ghim), nút ⌄ liệt kê tab; sau “Close saved tabs” chỉ còn các tab có thay đổi chưa lưu.</figcaption></figure>
+      <figure><img src="__IMG_r2_help__" alt="Help"/><figcaption>Help & Support (F1): validate form, đính kèm phiên bản và OS. Đợt này không gửi email thật.</figcaption></figure>
+    </div>
+    <p class="sub">Không có ảnh chụp terminal vì danh sách gợi ý của PSReadLine hiện lịch sử lệnh trên máy. Kết quả terminal được kiểm tra bằng cách đọc chữ trong xterm: <code>cs-42</code> và response JSON của Login.</p>
+  </section>
+
+  <section id="chuatest">
+    <h2>6. Chưa kiểm thử trong đợt này</h2>
+    <ul class="tight">
+      <li>Cửa sổ desktop Tauri (<code>pnpm tauri dev</code>/bản build): hộp thoại mở/lưu file native, menu hệ thống. Đợt này test qua trình duyệt với cùng core Rust.</li>
+      <li>HTTPS/TLS (mock chỉ có HTTP), proxy, MQTT qua TLS, gRPC TLS và gRPC streaming (server/client/bidi).</li>
+      <li>OAuth 2.0 lấy token, AWS SigV4 với AWS thật; Runner với file dữ liệu CSV/JSON.</li>
+      <li>Executor arrival-rate, iterations và màn so sánh run: đã test ở đợt trước, đợt này không chạy lại.</li>
+      <li>Hiệu năng UI với collection rất lớn (hàng nghìn request) và chế độ sáng của app.</li>
+    </ul>
+  </section>
+
+  <section id="chaylai">
+    <h2>7. Cách chạy lại</h2>
+    <div class="card mono" style="white-space:pre-wrap;font-size:12.5px">docker compose -f testing/mock/docker-compose.yml up -d
+pnpm bridge        # backend 127.0.0.1:1451 (đặt CURLSTUDIO_HOME để tách dữ liệu)
+pnpm dev           # http://localhost:1450
+# Import testing/fixtures/*.json, chọn environment "Mock Local", chạy collection.
+docker compose -f testing/mock/docker-compose.yml down</div>
+  </section>
+</div>
+
+<div class="lightbox" id="lb" role="dialog" aria-label="Ảnh phóng to"><img alt="" /></div>
+
+<script>
+const TC = __TC__;
+const FIXED = __FIXED__;
+const EVAL = __EVAL__;
+const RESOLVED = __RESOLVED__;
+const FIXED2 = __FIXED2__;
+const GITSTUDIO = __GITSTUDIO__;
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const statusBadge = (s) => ({
+  pass: '<span class="badge b-pass">✓ Đạt</span>',
+  remark: '<span class="badge b-warn">! Đạt, có ghi chú</span>',
+  fixed: '<span class="badge b-fixed">↻ Lỗi → đã sửa</span>',
+  fail: '<span class="badge b-fail">✕ Lỗi</span>',
+}[s]);
+const sevBadge = (s) => ({ high: '<span class="badge b-high">▲ Cao</span>', med: '<span class="badge b-med">■ Trung bình</span>', low: '<span class="badge b-low">● Thấp</span>' }[s]);
+
+// Tiles
+const n = (f) => TC.filter(f).length;
+const openBugs = EVAL.filter((e) => e.kind === 'bug').length;
+const sugg = EVAL.filter((e) => e.kind === 'idea').length;
+const tiles = [
+  ['Ca kiểm thử', TC.length, 'thủ công trên UI + tự động'],
+  ['Đạt', n((t) => t.status === 'pass' || t.status === 'remark'), `${n((t) => t.status === 'remark')} ca có ghi chú`],
+  ['Lỗi đã sửa', FIXED.length, 'tái hiện → sửa → kiểm tra lại'],
+  ['Vấn đề còn mở', openBugs, 'không có mức Cao'],
+  ['Đề xuất cải tiến', sugg, 'chờ bạn đánh giá'],
+  ['Giao thức', 6, 'HTTP · GraphQL · WS · SSE · MQTT · gRPC'],
+];
+document.getElementById('tiles').innerHTML = tiles.map(([k, v, d]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+document.getElementById('fixedCount').textContent = FIXED.length;
+document.getElementById('openCount').textContent = openBugs;
+
+// Test case table + filters
+function filterBar(el, groups, onPick) {
+  let cur = 'all';
+  const render = () => {
+    el.innerHTML = [['all', 'Tất cả'], ...groups].map(([v, l]) => `<button type="button" class="chip" aria-pressed="${v === cur}" data-v="${esc(v)}">${esc(l)}</button>`).join('');
+  };
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    cur = b.dataset.v;
+    render();
+    onPick(cur);
+  });
+  render();
+}
+function renderTC(f) {
+  document.querySelector('#tcTable tbody').innerHTML = TC.filter((t) => f === 'all' || t.area === f || t.status === f)
+    .map((t) => `<tr><td class="mono">${t.id}</td><td>${esc(t.area)}${t.isNew ? ' <span class="badge b-new">mới</span>' : ''}</td><td>${esc(t.what)}</td><td>${esc(t.result)}</td><td>${statusBadge(t.status)}</td></tr>`)
+    .join('');
+}
+const areas = [...new Set(TC.map((t) => t.area))];
+filterBar(document.getElementById('tcFilters'), [...areas.map((a) => [a, a]), ['fixed', '↻ Đã sửa'], ['remark', '! Có ghi chú']], renderTC);
+renderTC('all');
+
+document.querySelector('#fixedTable tbody').innerHTML = FIXED.map((b) => `<tr><td class="mono">${b.id}</td><td>${sevBadge(b.sev)}</td><td>${esc(b.what)}</td><td>${esc(b.cause)}</td><td>${esc(b.fix)}<div class="muted mono" style="margin-top:4px">${esc(b.files)}</div></td></tr>`).join('');
+
+// Evaluation table (decisions kept in this browser only)
+const KEY = 'curlstudio-test-report-eval-v1';
+let decisions = {};
+try { decisions = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch { decisions = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(decisions)); } catch { /* private mode: kept in memory */ } };
+const OPTIONS = [['', '— chưa đánh giá —'], ['fix', 'Làm ngay'], ['later', 'Để sau'], ['no', 'Không làm']];
+function renderEval(f) {
+  document.querySelector('#evalTable tbody').innerHTML = EVAL.filter((e) => f === 'all' || e.kind === f || e.sev === f)
+    .map((e) => {
+      const d = decisions[e.id] || {};
+      return `<tr><td class="mono">${e.id}</td><td>${e.kind === 'bug' ? 'Lỗi' : 'Đề xuất'}<br>${sevBadge(e.sev)}</td><td><b>${esc(e.title)}</b></td><td>${esc(e.detail)}</td>
+      <td><select data-id="${e.id}" aria-label="Quyết định cho ${e.id}">${OPTIONS.map(([v, l]) => `<option value="${v}"${d.choice === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+      <textarea data-note="${e.id}" placeholder="Ghi chú…" aria-label="Ghi chú cho ${e.id}">${esc(d.note || '')}</textarea></td></tr>`;
+    })
+    .join('');
+}
+document.getElementById('evalTable').addEventListener('change', (e) => {
+  const id = e.target.dataset.id;
+  if (id) { decisions[id] = { ...(decisions[id] || {}), choice: e.target.value }; save(); }
+});
+document.getElementById('evalTable').addEventListener('input', (e) => {
+  const id = e.target.dataset.note;
+  if (id) { decisions[id] = { ...(decisions[id] || {}), note: e.target.value }; save(); }
+});
+filterBar(document.getElementById('evFilters'), [['bug', 'Lỗi còn mở'], ['idea', 'Đề xuất'], ['med', 'Mức trung bình'], ['low', 'Mức thấp']], renderEval);
+renderEval('all');
+
+function evalMarkdown() {
+  const label = Object.fromEntries(OPTIONS);
+  const lines = ['# Đánh giá báo cáo kiểm thử CurlStudio', ''];
+  for (const e of EVAL) {
+    const d = decisions[e.id] || {};
+    lines.push(`- **${e.id}** ${e.title}: ${d.choice ? label[d.choice] : 'chưa đánh giá'}${d.note ? ` — ${d.note.replace(/\n/g, ' ')}` : ''}`);
+  }
+  return lines.join('\n');
+}
+document.getElementById('exportEval').addEventListener('click', () => {
+  const blob = new Blob([evalMarkdown()], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'curlstudio-danh-gia.md';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+document.getElementById('copyEval').addEventListener('click', async () => {
+  const s = document.getElementById('evalStatus');
+  try { await navigator.clipboard.writeText(evalMarkdown()); s.textContent = 'Đã sao chép.'; } catch { s.textContent = 'Không sao chép được — dùng nút Xuất.'; }
+});
+
+// Round 2
+const resBadge = (s) => (s === 'done' ? '<span class="badge b-pass">✓ Hoàn tất</span>' : '<span class="badge b-warn">◐ Một phần</span>');
+document.querySelector('#resolvedTable tbody').innerHTML = RESOLVED.map((r) => `<tr><td class="mono">${r.id}</td><td>${resBadge(r.status)}</td><td>${esc(r.done)}</td><td>${esc(r.verify)}</td></tr>`).join('');
+document.querySelector('#gitstudioTable tbody').innerHTML = GITSTUDIO.map((g) => `<tr><td><b>${esc(g.name)}</b></td><td>${esc(g.what)}</td></tr>`).join('');
+document.querySelector('#fixed2Table tbody').innerHTML = FIXED2.map((b) => `<tr><td class="mono">${b.id}</td><td>${sevBadge(b.sev)}</td><td>${esc(b.what)}</td><td>${esc(b.cause)}</td><td>${esc(b.fix)}<div class="muted mono" style="margin-top:4px">${esc(b.files)}</div></td></tr>`).join('');
+document.getElementById('r2done').textContent = RESOLVED.filter((r) => r.status === 'done').length;
+document.getElementById('r2partial').textContent = RESOLVED.filter((r) => r.status !== 'done').length;
+document.getElementById('r2bugs').textContent = FIXED2.length;
+// Evaluation rows show what happened to each item.
+for (const tr of document.querySelectorAll('#evalTable tbody tr')) {
+  const r = RESOLVED.find((x) => x.id === tr.firstElementChild.textContent);
+  if (r) tr.children[1].insertAdjacentHTML('beforeend', `<br>${resBadge(r.status)}`);
+}
+
+// Theme toggle + lightbox
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark';
+});
+const lb = document.getElementById('lb');
+document.addEventListener('click', (e) => {
+  if (e.target.matches('figure img')) { lb.querySelector('img').src = e.target.src; lb.classList.add('open'); }
+  else if (e.target.closest('#lb')) lb.classList.remove('open');
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') lb.classList.remove('open'); });
+</script>
+</body>
+</html>

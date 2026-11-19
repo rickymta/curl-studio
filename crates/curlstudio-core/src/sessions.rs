@@ -43,7 +43,13 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn push(&self, dir: &'static str, kind: impl Into<String>, data: impl Into<String>, meta: Value) {
+    pub fn push(
+        &self,
+        dir: &'static str,
+        kind: impl Into<String>,
+        data: impl Into<String>,
+        meta: Value,
+    ) {
         let mut g = self.inner.lock().unwrap();
         g.seq += 1;
         let seq = g.seq;
@@ -84,7 +90,10 @@ pub fn create(kind: &'static str) -> (Session, mpsc::UnboundedReceiver<Value>) {
     let s = Session {
         id: uuid::Uuid::new_v4().to_string(),
         kind,
-        inner: Arc::new(Mutex::new(Inner { state: "connecting".into(), ..Default::default() })),
+        inner: Arc::new(Mutex::new(Inner {
+            state: "connecting".into(),
+            ..Default::default()
+        })),
         tx,
     };
     registry().lock().unwrap().insert(s.id.clone(), s.clone());
@@ -102,7 +111,8 @@ pub fn get(id: &str) -> Result<Session> {
 
 pub fn command(id: &str, cmd: Value) -> Result<()> {
     let s = get(id)?;
-    s.tx.send(cmd).map_err(|_| Error::Invalid("session is closed".into()))
+    s.tx.send(cmd)
+        .map_err(|_| Error::Invalid("session is closed".into()))
 }
 
 pub fn poll(id: &str, since: u64) -> Result<Value> {

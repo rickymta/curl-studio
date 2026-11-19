@@ -1,3 +1,4 @@
+import { logActivity } from '@/stores/activity';
 import { api } from '@/lib/ipc';
 import { uid } from '@/lib/postman';
 import { useTabs } from '@/stores/tabs';
@@ -18,7 +19,17 @@ export async function startScenario(scenarioId: string): Promise<string | null> 
   if (problems.length) toast('error', problems.join('; '));
   try {
     const env = doc.environmentId ? ws.environments[doc.environmentId]?.name : undefined;
-    const id = await api.loadStart(scenario, { scenarioId, environment: env, testType: doc.testType });
+    const id = await api.loadStart(scenario, {
+      scenarioId,
+      environment: env,
+      testType: doc.testType,
+    });
+    logActivity({
+      cat: 'load',
+      label: `Load test started: ${doc.name}`,
+      status: 'started',
+      detail: `${doc.testType ?? 'custom'}${env ? ` · env ${env}` : ''} · run ${id}`,
+    });
     useRuns.getState().setLive(id, true);
     useRuns.getState().refresh();
     useTabs.getState().open({ id: uid(), kind: 'loadRun', runId: id });

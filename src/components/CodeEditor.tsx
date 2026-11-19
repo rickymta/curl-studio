@@ -13,7 +13,7 @@ import {
   syntaxHighlighting,
 } from '@codemirror/language';
 import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search';
-import { Compartment, EditorState, type Extension, RangeSetBuilder } from '@codemirror/state';
+import { Compartment, EditorState, type Extension, RangeSetBuilder, StateEffect } from '@codemirror/state';
 import {
   Decoration,
   type DecorationSet,
@@ -21,6 +21,7 @@ import {
   EditorView,
   highlightActiveLine,
   highlightActiveLineGutter,
+  hoverTooltip,
   keymap,
   lineNumbers,
   placeholder as placeholderExt,
@@ -30,7 +31,10 @@ import {
 import { tags as t } from '@lezer/highlight';
 import { useEffect, useRef } from 'react';
 
+import { useVarCollection } from '@/features/request/varScope';
+
 import { cn } from './ui';
+import { varTooltipDom } from './varTooltip';
 
 export type Lang = 'json' | 'xml' | 'html' | 'javascript' | 'text' | 'graphql';
 
@@ -63,8 +67,37 @@ const theme = EditorView.theme({
   '.cm-search input, .cm-search button': { fontSize: '12px' },
   '.cm-foldGutter span': { padding: '0 2px' },
   '.cm-var': { color: 'var(--accent)', fontWeight: '600' },
-  '.cm-var-unknown': { color: 'var(--danger)', fontWeight: '600' },
+  // Syntax highlighting (e.g. a JSON string) renders inside the mark; let the variable colour win.
+  '.cm-var *, .cm-var-unknown *': { color: 'inherit' },
+  '.cm-var-unknown': { color: 'var(--danger)', fontWeight: '600', outline: '1px solid color-mix(in oklch, var(--danger) 60%, transparent)', borderRadius: '2px' },
+  '.cm-tooltip.cm-var-tip': { border: 'none', background: 'transparent' },
 });
+
+/** Re-colour `{{vars}}` after the set of known variables changed (environment switch, edits). */
+const refreshVars = StateEffect.define<null>();
+
+/** Postman-style card when hovering a `{{variable}}` in the editor (value, scope, edit in place). */
+function varHover(collectionId: () => string | null) {
+  return hoverTooltip(
+    (view, pos) => {
+      const line = view.state.doc.lineAt(pos);
+      for (const m of line.text.matchAll(VAR_RE)) {
+        const from = line.from + m.index!;
+        const to = from + m[0].length;
+        if (pos < from || pos > to) continue;
+        const name = m[0].slice(2, -2).trim();
+        return {
+          pos: from,
+          end: to,
+          above: false,
+          create: () => ({ dom: varTooltipDom(name, collectionId(), () => view.dispatch({ effects: refreshVars.of(null) })) }),
+        };
+      }
+      return null;
+    },
+    { hoverTime: 300 },
+  );
+}
 
 const VAR_RE = /\{\{[^{}]+\}\}/g;
 
@@ -91,7 +124,7 @@ function varHighlighter(known: () => Set<string> | null) {
         this.decorations = build(v);
       }
       update(u: ViewUpdate) {
-        if (u.docChanged || u.viewportChanged) this.decorations = build(u.view);
+        if (u.docChanged || u.viewportChanged || u.transactions.some((tr) => tr.effects.some((e) => e.is(refreshVars)))) this.decorations = build(u.view);
       }
     },
     { decorations: (v) => v.decorations },
@@ -163,6 +196,8 @@ export interface CodeEditorProps {
   variables?: Set<string> | null;
   scripting?: boolean;
   onRun?: () => void;
+  /** Extra CodeMirror extensions (e.g. GraphQL completion); reconfigured when it changes. */
+  extensions?: Extension;
 }
 
 export function CodeEditor({
@@ -177,16 +212,22 @@ export function CodeEditor({
   variables = null,
   scripting = false,
   onRun,
+  extensions,
 }: CodeEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const lang = useRef(new Compartment());
   const ro = useRef(new Compartment());
   const wrapC = useRef(new Compartment());
-  const cb = useRef({ onChange, onRun, variables });
+  const extra = useRef(new Compartment());
+  const collectionId = useVarCollection();
+  const cb = useRef({ onChange, onRun, variables, collectionId });
   useEffect(() => {
-    cb.current = { onChange, onRun, variables };
+    cb.current = { onChange, onRun, variables, collectionId };
   });
+  useEffect(() => {
+    view.current?.dispatch({ effects: refreshVars.of(null) });
+  }, [variables]);
 
   useEffect(() => {
     if (!host.current) return;
@@ -216,10 +257,12 @@ export function CodeEditor({
           ]),
           theme,
           varHighlighter(() => cb.current.variables ?? null),
+          cb.current.variables !== null ? varHover(() => cb.current.collectionId) : [],
           placeholder ? placeholderExt(placeholder) : [],
           lang.current.of(langExt(language)),
           ro.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
           wrapC.current.of(wrap ? EditorView.lineWrapping : []),
+          extra.current.of(extensions ?? []),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) cb.current.onChange?.(u.state.doc.toString());
           }),
@@ -248,6 +291,9 @@ export function CodeEditor({
   useEffect(() => {
     view.current?.dispatch({ effects: wrapC.current.reconfigure(wrap ? EditorView.lineWrapping : []) });
   }, [wrap]);
+  useEffect(() => {
+    view.current?.dispatch({ effects: extra.current.reconfigure(extensions ?? []) });
+  }, [extensions]);
 
   return <div ref={host} className={cn('selectable min-h-0 overflow-hidden', className)} />;
 }
