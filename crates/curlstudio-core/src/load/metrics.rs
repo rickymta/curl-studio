@@ -430,7 +430,7 @@ impl Metrics {
                 count: *count,
             })
             .collect();
-        errors.sort_by(|a, b| b.count.cmp(&a.count));
+        errors.sort_by_key(|a| std::cmp::Reverse(a.count));
         let peak_rps = self.timeline.iter().map(|p| p.requests).max().unwrap_or(0);
         Summary {
             duration_s: elapsed_s,
