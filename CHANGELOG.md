@@ -2,6 +2,12 @@
 
 Các thay đổi đáng chú ý của CurlStudio. File này do `pnpm release` cập nhật.
 
+## v0.2.1 - 2026-11-20
+
+Thay đổi từ v0.2.0.
+
+- feat(ui): app-styled prompts, context menu, checkboxes and radios (e4662bd)
+
 ## v0.2.0 - 2026-11-20
 
 Thay đổi từ v0.1.1.
