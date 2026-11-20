@@ -2,6 +2,7 @@ import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialo
 import { openPath as openPathNative, openUrl as openUrlNative } from '@tauri-apps/plugin-opener';
 
 import { download } from './format';
+import { t } from './i18n';
 import { api, isTauri } from './ipc';
 
 export interface Filter {
@@ -16,7 +17,7 @@ export async function pickFiles(opts: { title: string; filters?: Filter[]; multi
     if (!r) return [];
     return Array.isArray(r) ? r : [r];
   }
-  const p = window.prompt(`${opts.title} (absolute path${opts.multiple ? 's, separated by ;' : ''})`);
+  const p = window.prompt(opts.multiple ? t('{title} (absolute paths, separated by ;)', { title: opts.title }) : t('{title} (absolute path)', { title: opts.title }));
   return p ? p.split(';').map((x) => x.trim()).filter(Boolean) : [];
 }
 
@@ -59,7 +60,7 @@ export async function savePath(defaultName: string, filters?: Filter[]): Promise
   if (isTauri) {
     return (await saveDialog({ defaultPath: defaultName, filters })) ?? null;
   }
-  return window.prompt('Save to (absolute path)', defaultName);
+  return window.prompt(t('Save to (absolute path)'), defaultName);
 }
 
 export async function openUrl(url: string): Promise<void> {

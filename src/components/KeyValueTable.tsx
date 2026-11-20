@@ -2,6 +2,7 @@ import { FileUp, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { useVarCollection } from '@/features/request/varScope';
+import { t } from '@/lib/i18n';
 import { pickFiles } from '@/lib/native';
 import type { PmFormParam, PmKV } from '@/lib/types';
 
@@ -171,7 +172,7 @@ function ColResizer({ col, widths, setWidths, invert = false }: { col: ColKey; w
     <span
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize column"
+      aria-label={t('Resize column')}
       onPointerDown={onDown}
       onDoubleClick={() => {
         const next = { ...widths, [col]: DEFAULT_COLS[col] };
@@ -187,8 +188,8 @@ export function KeyValueTable({
   rows,
   onChange,
   known,
-  keyPlaceholder = 'Key',
-  valuePlaceholder = 'Value',
+  keyPlaceholder = t('Key'),
+  valuePlaceholder = t('Value'),
   files = false,
   description = true,
   readOnlyKeys = false,
@@ -240,11 +241,11 @@ export function KeyValueTable({
           rows={Math.max(6, rows.length + 2)}
           spellCheck={false}
           className="selectable w-full rounded-md border border-border bg-background p-2 font-mono text-[12.5px] outline-none focus:border-accent"
-          placeholder="key:value — one per line, prefix with // to disable"
+          placeholder={t('key:value — one per line, prefix with // to disable')}
         />
         <div className="flex justify-end">
           <button type="button" onClick={fromBulk} className="text-[12px] text-accent hover:underline">
-            Key-Value Edit
+            {t('Key-Value Edit')}
           </button>
         </div>
       </div>
@@ -273,7 +274,7 @@ export function KeyValueTable({
               </th>
               {files && (
                 <th className={cn(cell, 'relative px-2 font-medium')}>
-                  Type
+                  {t('Type')}
                   <ColResizer col="type" widths={widths} setWidths={setWidths} />
                 </th>
               )}
@@ -281,12 +282,12 @@ export function KeyValueTable({
               {description && (
                 <th className={cn(cell, 'relative px-2 font-medium')}>
                   <ColResizer col="desc" widths={widths} setWidths={setWidths} invert />
-                  Description
+                  {t('Description')}
                 </th>
               )}
               <th className={cn(cell, 'border-r-0')}>
-                <button type="button" onClick={toBulk} className="px-1 text-[10px] text-accent hover:underline" title="Bulk edit">
-                  Bulk
+                <button type="button" onClick={toBulk} className="px-1 text-[10px] text-accent hover:underline" title={t('Bulk edit')}>
+                  {t('Bulk')}
                 </button>
               </th>
             </tr>
@@ -329,8 +330,8 @@ export function KeyValueTable({
                         }
                         className="h-full w-full bg-transparent px-1 text-[12px] outline-none"
                       >
-                        <option value="text">Text</option>
-                        <option value="file">File</option>
+                        <option value="text">{t('Text')}</option>
+                        <option value="file">{t('File')}</option>
                       </select>
                     </td>
                   )}
@@ -338,12 +339,12 @@ export function KeyValueTable({
                     {isFile ? (
                       <div className="flex h-full items-center gap-1 px-2">
                         <span className="min-w-0 flex-1 truncate font-mono text-[12px]" title={srcs.join('\n')}>
-                          {srcs.length ? srcs.map((s) => s.split(/[\\/]/).pop()).join(', ') : <span className="text-muted-foreground">No file</span>}
+                          {srcs.length ? srcs.map((s) => s.split(/[\\/]/).pop()).join(', ') : <span className="text-muted-foreground">{t('No file')}</span>}
                         </span>
                         <IconButton
-                          label="Select files"
+                          label={t('Select files')}
                           onClick={async () => {
-                            const p = await pickFiles({ title: 'Select files', multiple: true });
+                            const p = await pickFiles({ title: t('Select files'), multiple: true });
                             if (p.length) update(i, { src: p.length === 1 ? p[0] : p });
                           }}
                         >
@@ -364,7 +365,7 @@ export function KeyValueTable({
                     <td className={cell}>
                       <input
                         value={desc(row)}
-                        placeholder={ghost ? 'Description' : ''}
+                        placeholder={ghost ? t('Description') : ''}
                         onChange={(e) => (ghost ? add({ description: e.target.value }) : update(i, { description: e.target.value }))}
                         className="h-full w-full bg-transparent px-2 text-[12px] outline-none placeholder:text-muted-foreground"
                       />
@@ -372,7 +373,7 @@ export function KeyValueTable({
                   )}
                   <td className={cn(cell, 'border-r-0 text-center')}>
                     {!ghost && (
-                      <IconButton label="Delete" onClick={() => remove(i)} className="opacity-0 group-hover:opacity-100">
+                      <IconButton label={t('Delete')} onClick={() => remove(i)} className="opacity-0 group-hover:opacity-100">
                         <Trash2 className="size-3.5" />
                       </IconButton>
                     )}

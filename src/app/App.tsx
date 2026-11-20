@@ -5,6 +5,7 @@ import {
   Globe2,
   History,
   Layers,
+  Moon,
   Check,
   ChevronDown,
   PanelLeftClose,
@@ -15,6 +16,7 @@ import {
   Search,
   Settings as SettingsIcon,
   SquareTerminal,
+  Sun,
   Trash2,
   X,
 } from 'lucide-react';
@@ -51,14 +53,17 @@ import { GrpcEditor, MqttEditor, SseEditor, WsEditor } from '@/features/protocol
 import { newTab, promptText, type NewKind } from '@/features/actions';
 import { closeAll, closeOthers, closeSaved, closeTab } from '@/features/tabs/close';
 import { VarCollection } from '@/features/request/varScope';
+import { t as tr, useLang, useLangStore } from '@/lib/i18n';
 import { itemProtocol, methodColor, PROTOCOL_LABEL, uid } from '@/lib/postman';
 import { useConsole } from '@/stores/console';
 import { syncTabsWithWorkspace, type Tab, useTabs } from '@/stores/tabs';
-import { type SidebarView, useUi } from '@/stores/ui';
+import { notify, type SidebarView, toast, useUi } from '@/stores/ui';
 import { createCollection, useWorkspace } from '@/stores/workspace';
 import { useRuns } from '@/features/load/runs';
 import { applyBrightness, applyZoom, setZoom, zoomBy } from '@/features/shell/appearance';
+import { LanguagePicker } from '@/features/shell/LanguagePicker';
 import { StatusBar } from '@/features/shell/StatusBar';
+import { Toasts } from '@/features/shell/Toasts';
 import { TerminalPanel } from '@/features/terminal/TerminalPanel';
 import { toggleTerminal } from '@/features/terminal/runtime';
 import { loadActivity, logActivity } from '@/stores/activity';
@@ -95,36 +100,41 @@ function tabTitle(t: Tab): { title: string; badge?: React.ReactNode } {
     case 'environment':
       return {
         title:
-          t.envId === 'globals' ? 'Globals' : (ws.environments[t.envId]?.name ?? 'Environment'),
+          t.envId === 'globals'
+            ? tr('Globals')
+            : (ws.environments[t.envId]?.name ?? tr('Environment')),
         badge: <Globe2 className="size-3 text-muted-foreground" />,
       };
     case 'collection':
       return {
-        title: ws.collections[t.collectionId]?.info.name ?? 'Collection',
+        title: ws.collections[t.collectionId]?.info.name ?? tr('Collection'),
         badge: <Layers className="size-3 text-accent" />,
       };
     case 'runner':
       return {
-        title: `Run: ${ws.collections[t.collectionId]?.info.name ?? ''}`,
+        title: tr('Run: {name}', { name: ws.collections[t.collectionId]?.info.name ?? '' }),
         badge: <span className="text-success">▶</span>,
       };
     case 'scenario':
       return {
-        title: ws.scenarios[t.scenarioId]?.name ?? 'Load test',
+        title: ws.scenarios[t.scenarioId]?.name ?? tr('Load test'),
         badge: <Gauge className="size-3 text-accent" />,
       };
     case 'loadRun':
       return {
-        title: `Report ${t.runId.slice(9, 15)}`,
+        title: tr('Report {id}', { id: t.runId.slice(9, 15) }),
         badge: <Gauge className="size-3 text-success" />,
       };
     case 'compare':
       return {
-        title: `Compare ${t.runIds.length} runs`,
+        title: tr('Compare {n} runs', { n: t.runIds.length }),
         badge: <Gauge className="size-3 text-muted-foreground" />,
       };
     case 'loadRuns':
-      return { title: 'Load test runs', badge: <Gauge className="size-3 text-muted-foreground" /> };
+      return {
+        title: tr('Load test runs'),
+        badge: <Gauge className="size-3 text-muted-foreground" />,
+      };
   }
 }
 
@@ -147,7 +157,7 @@ function TabStrip() {
       <div
         className="flex h-9 min-w-0 items-end overflow-x-auto"
         role="tablist"
-        aria-label="Open tabs"
+        aria-label={tr('Open tabs')}
       >
         {tabs.map((t, i) => {
           const { title, badge } = tabTitle(t);
@@ -158,7 +168,7 @@ function TabStrip() {
               key={t.id}
               items={() => [
                 {
-                  label: isPinned ? 'Unpin tab' : 'Pin tab',
+                  label: isPinned ? tr('Unpin tab') : tr('Pin tab'),
                   icon: isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />,
                   onSelect: () => useTabs.getState().togglePin(t.id),
                 },
@@ -166,25 +176,25 @@ function TabStrip() {
                 ...(t.kind === 'request' && t.collectionId && t.itemId
                   ? [
                       {
-                        label: 'Reveal in sidebar',
+                        label: tr('Reveal in sidebar'),
                         onSelect: () => revealItem(t.collectionId!, t.itemId!, true),
                       },
                       'sep' as const,
                     ]
                   : []),
-                { label: 'Close', onSelect: () => closeTab(t.id) },
-                { label: 'Close others', onSelect: () => closeOthers(t.id) },
-                { label: 'Close saved tabs', onSelect: () => closeSaved() },
-                { label: 'Close all', onSelect: () => closeAll() },
+                { label: tr('Close'), onSelect: () => closeTab(t.id) },
+                { label: tr('Close others'), onSelect: () => closeOthers(t.id) },
+                { label: tr('Close saved tabs'), onSelect: () => closeSaved() },
+                { label: tr('Close all'), onSelect: () => closeAll() },
                 ...(t.kind === 'request'
                   ? [
                       {
-                        label: 'Duplicate tab',
+                        label: tr('Duplicate tab'),
                         onSelect: () =>
                           useTabs.getState().openDraft({
                             ...JSON.parse(JSON.stringify(t.draft)),
                             id: uid(),
-                            name: `${t.draft.name} Copy`,
+                            name: tr('{name} Copy', { name: t.draft.name }),
                           }),
                       },
                     ]
@@ -209,7 +219,7 @@ function TabStrip() {
                 onClick={() => useTabs.getState().setActive(t.id)}
                 role="tab"
                 aria-selected={t.id === active}
-                title={dirty ? `${title} — unsaved changes` : title}
+                title={dirty ? tr('{title} — unsaved changes', { title }) : title}
                 className={cn(
                   'group flex h-9 cursor-pointer items-center gap-1.5 border-r border-border px-2.5 text-[12.5px]',
                   isPinned ? 'max-w-40 min-w-0' : 'max-w-56 min-w-32',
@@ -219,7 +229,7 @@ function TabStrip() {
                 )}
               >
                 {isPinned && (
-                  <Pin className="size-3 shrink-0 text-muted-foreground" aria-label="Pinned" />
+                  <Pin className="size-3 shrink-0 text-muted-foreground" aria-label={tr('Pinned')} />
                 )}
                 {badge}
                 <span className="min-w-0 flex-1 truncate">{title}</span>
@@ -234,7 +244,7 @@ function TabStrip() {
                 {!isPinned && (
                   <button
                     type="button"
-                    aria-label="Close tab"
+                    aria-label={tr('Close tab')}
                     onClick={(e) => {
                       e.stopPropagation();
                       closeTab(t.id);
@@ -252,11 +262,13 @@ function TabStrip() {
           );
         })}
       </div>
-      <Dropdown items={NEW_ITEMS.map((n) => ({ label: n.label, onSelect: () => newTab(n.kind) }))}>
+      <Dropdown
+        items={NEW_ITEMS.map((n) => ({ label: tr(n.label), onSelect: () => newTab(n.kind) }))}
+      >
         <button
           type="button"
           className="flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
-          title="New tab"
+          title={tr('New tab')}
         >
           <Plus className="size-4" />
         </button>
@@ -275,14 +287,14 @@ function TabStrip() {
               };
             }),
             'sep' as const,
-            { label: 'Close saved tabs', onSelect: () => closeSaved() },
-            { label: 'Close all tabs', onSelect: () => closeAll() },
+            { label: tr('Close saved tabs'), onSelect: () => closeSaved() },
+            { label: tr('Close all tabs'), onSelect: () => closeAll() },
           ]}
         >
           <button
             type="button"
-            title={`All open tabs (${tabs.length})`}
-            aria-label="All open tabs"
+            title={tr('All open tabs ({n})', { n: tabs.length })}
+            aria-label={tr('All open tabs')}
             className="flex h-9 shrink-0 items-center gap-1 border-l border-border px-2 text-[12px] text-muted-foreground hover:text-foreground"
           >
             {tabs.length}
@@ -302,13 +314,14 @@ function TabContent() {
         <div className="mt-2 grid grid-cols-3 gap-2">
           {NEW_ITEMS.map((n) => (
             <Button key={n.kind} onClick={() => newTab(n.kind)}>
-              {n.label}
+              {tr(n.label)}
             </Button>
           ))}
         </div>
         <div className="mt-4 text-[12px]">
-          Ctrl+T new request · Ctrl+Enter send · Ctrl+S save · Ctrl+W close tab · Ctrl+` terminal ·
-          Ctrl+/ all shortcuts
+          {tr(
+            'Ctrl+T new request · Ctrl+Enter send · Ctrl+S save · Ctrl+W close tab · Ctrl+` terminal · Ctrl+/ all shortcuts',
+          )}
         </div>
       </Empty>
     );
@@ -356,6 +369,21 @@ const VIEWS: { id: SidebarView; label: string; icon: React.ReactNode }[] = [
   { id: 'load', label: 'Load tests', icon: <Gauge className="size-4.5" /> },
 ];
 
+/** Short labels under the sidebar icons (first word of the view label). */
+const VIEW_SHORT: Record<SidebarView, string> = {
+  collections: 'Collections',
+  environments: 'Environments',
+  history: 'History',
+  load: 'Load',
+};
+
+const SEARCH_PLACEHOLDER: Record<SidebarView, string> = {
+  collections: 'Search collections (Ctrl+K)',
+  environments: 'Search environments (Ctrl+K)',
+  history: 'Search history (Ctrl+K)',
+  load: 'Search load tests (Ctrl+K)',
+};
+
 function Sidebar() {
   const view = useUi((s) => s.sidebar);
   const width = useUi((s) => s.sidebarWidth);
@@ -375,7 +403,7 @@ function Sidebar() {
     window.addEventListener('pointerup', up);
   };
   const newLoadTest = () => {
-    const sc = newScenario('New load test');
+    const sc = newScenario(tr('New load test'));
     useWorkspace.getState().saveScenario(sc);
     useTabs.getState().open({ id: uid(), kind: 'scenario', scenarioId: sc.id });
   };
@@ -383,24 +411,29 @@ function Sidebar() {
     view === 'collections'
       ? [
           {
-            label: 'New collection',
+            label: tr('New collection'),
             onSelect: () =>
-              promptText('New collection', 'Name', 'My Collection', (n) => createCollection(n)),
+              promptText(tr('New collection'), tr('Name'), tr('My Collection'), (n) =>
+                createCollection(n),
+              ),
           },
           'sep',
-          ...NEW_ITEMS.map((n) => ({ label: `New ${n.label}`, onSelect: () => newTab(n.kind) })),
+          ...NEW_ITEMS.map((n) => ({
+            label: tr('New {kind}', { kind: tr(n.label) }),
+            onSelect: () => newTab(n.kind),
+          })),
           'sep',
-          { label: 'Import…', onSelect: () => useUi.getState().show({ kind: 'import' }) },
+          { label: tr('Import…'), onSelect: () => useUi.getState().show({ kind: 'import' }) },
         ]
       : view === 'environments'
         ? [
-            { label: 'New environment', onSelect: () => newEnvironmentPrompt() },
+            { label: tr('New environment'), onSelect: () => newEnvironmentPrompt() },
             {
-              label: 'Import environment…',
+              label: tr('Import environment…'),
               onSelect: () => useUi.getState().show({ kind: 'import' }),
             },
           ]
-        : [{ label: 'New load test', onSelect: newLoadTest }];
+        : [{ label: tr('New load test'), onSelect: newLoadTest }];
   return (
     <div className="flex shrink-0">
       <nav className="flex w-14 flex-col items-center gap-1 border-r border-border bg-surface-muted py-2">
@@ -408,7 +441,7 @@ function Sidebar() {
           <button
             key={v.id}
             type="button"
-            title={v.label}
+            title={tr(v.label)}
             onClick={() => {
               if (useUi.getState().sidebarHidden) useUi.getState().toggleSidebar();
               else if (view === v.id) return useUi.getState().toggleSidebar();
@@ -422,7 +455,7 @@ function Sidebar() {
             )}
           >
             {v.icon}
-            {v.label.split(' ')[0]}
+            {tr(VIEW_SHORT[v.id])}
             {v.id === 'load' && live > 0 && (
               <span className="absolute top-1 right-2 size-2 animate-pulse rounded-full bg-success" />
             )}
@@ -431,7 +464,7 @@ function Sidebar() {
         <div className="flex-1" />
         <button
           type="button"
-          title={hidden ? 'Show sidebar (Ctrl+\\)' : 'Hide sidebar (Ctrl+\\)'}
+          title={hidden ? tr('Show sidebar (Ctrl+\\)') : tr('Hide sidebar (Ctrl+\\)')}
           onClick={() => useUi.getState().toggleSidebar()}
           className="flex w-12 justify-center rounded-md py-1.5 text-muted-foreground hover:text-foreground"
         >
@@ -454,14 +487,14 @@ function Sidebar() {
                   onKeyDown={(e) => {
                     if (e.key === 'Escape') useUi.getState().setFilter('');
                   }}
-                  placeholder={`Search ${VIEWS.find((v) => v.id === view)?.label.toLowerCase() ?? ''} (Ctrl+K)`}
-                  aria-label="Search sidebar"
+                  placeholder={tr(SEARCH_PLACEHOLDER[view])}
+                  aria-label={tr('Search sidebar')}
                   className="w-full min-w-0 bg-transparent text-[12px] outline-none"
                 />
                 {filter && (
                   <button
                     type="button"
-                    aria-label="Clear search"
+                    aria-label={tr('Clear search')}
                     onClick={() => useUi.getState().setFilter('')}
                     className="text-muted-foreground hover:text-foreground"
                   >
@@ -471,7 +504,7 @@ function Sidebar() {
               </div>
               {view !== 'history' && (
                 <Dropdown items={addItems}>
-                  <IconButton label="New…">
+                  <IconButton label={tr('New…')}>
                     <Plus className="size-4" />
                   </IconButton>
                 </Dropdown>
@@ -502,13 +535,13 @@ function ConsolePanel() {
   return (
     <div className="flex h-56 shrink-0 flex-col border-t border-border bg-surface">
       <div className="flex h-8 shrink-0 items-center gap-2 px-3">
-        <span className="text-[12px] font-semibold">Console</span>
+        <span className="text-[12px] font-semibold">{tr('Console')}</span>
         <Badge>{entries.length}</Badge>
         <div className="flex-1" />
-        <IconButton label="Clear" onClick={() => useConsole.getState().clear()}>
+        <IconButton label={tr('Clear')} onClick={() => useConsole.getState().clear()}>
           <Trash2 className="size-3.5" />
         </IconButton>
-        <IconButton label="Close" onClick={() => useConsole.getState().toggle(false)}>
+        <IconButton label={tr('Close')} onClick={() => useConsole.getState().toggle(false)}>
           <X className="size-3.5" />
         </IconButton>
       </div>
@@ -541,41 +574,17 @@ function ConsolePanel() {
   );
 }
 
-function Toasts() {
-  const toasts = useUi((s) => s.toasts);
-  return (
-    <div className="fixed right-4 bottom-4 z-[60] flex flex-col gap-2">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          onClick={() => useUi.getState().dismiss(t.id)}
-          className={cn(
-            'max-w-md cursor-pointer rounded-md border px-3 py-2 text-[12.5px] shadow-lg',
-            t.kind === 'error'
-              ? 'border-danger bg-danger-soft text-danger'
-              : t.kind === 'success'
-                ? 'border-success bg-success-soft text-success'
-                : 'border-border bg-surface',
-          )}
-        >
-          {t.text}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function EnvPicker() {
   const envs = useWorkspace((s) => s.environments);
   const active = useWorkspace((s) => s.activeEnv);
   return (
     <div className="flex items-center gap-1">
       <Select
-        title="Active environment"
+        title={tr('Active environment')}
         value={active ?? ''}
         onChange={(v) => useWorkspace.getState().setActiveEnv(v || null)}
         options={[
-          { value: '', label: 'No environment' },
+          { value: '', label: tr('No environment') },
           ...Object.values(envs)
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((e) => ({ value: e.id, label: e.name })),
@@ -583,7 +592,7 @@ function EnvPicker() {
         className="h-7 w-52 text-[12px]"
       />
       <IconButton
-        label="Edit environment"
+        label={tr('Edit environment')}
         disabled={!active}
         onClick={() =>
           active && useTabs.getState().open({ id: uid(), kind: 'environment', envId: active })
@@ -597,8 +606,37 @@ function EnvPicker() {
 
 let startLogged = false;
 
+/** Re-read collections, environments, settings and load runs from the workspace folder. */
+async function reloadWorkspace() {
+  await Promise.all([useWorkspace.getState().load(), useRuns.getState().refresh()]);
+  const error = useWorkspace.getState().error;
+  if (error) toast('error', tr('Could not reload the workspace'), error);
+  else toast('success', tr('Workspace reloaded from disk'));
+}
+
+/** Dark / light from the title bar (Settings → Appearance also offers "System"). */
+function ThemeToggle() {
+  const theme = useWorkspace((s) => s.settings.theme);
+  const dark =
+    theme === 'dark' ||
+    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  return (
+    <IconButton
+      label={dark ? tr('Switch to light theme') : tr('Switch to dark theme')}
+      onClick={() => {
+        const ws = useWorkspace.getState();
+        ws.saveSettings({ ...ws.settings, theme: dark ? 'light' : 'dark' });
+      }}
+    >
+      {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </IconButton>
+  );
+}
+
 export function App() {
   const loaded = useWorkspace((s) => s.loaded);
+  const lang = useLang();
+  const langChosen = useLangStore((s) => s.chosen);
   const error = useWorkspace((s) => s.error);
   const theme = useWorkspace((s) => s.settings.theme);
   const zoom = useWorkspace((s) => s.settings.zoom);
@@ -612,9 +650,26 @@ export function App() {
     // Once per page load (StrictMode runs effects twice in development).
     if (!startLogged) {
       startLogged = true;
-      void loadActivity().then(() =>
-        logActivity({ cat: 'app', label: `CurlStudio ${__APP_VERSION__} started`, status: 'info' }),
-      );
+      void loadActivity().then((stats) => {
+        logActivity({ cat: 'app', label: `CurlStudio ${__APP_VERSION__} started`, status: 'info' });
+        if (stats && stats.level !== 'ok')
+          notify({
+            kind: stats.level === 'full' ? 'error' : 'warning',
+            text: tr('Activity Logs file is {size} MB', {
+              size: (stats.bytes / 1024 / 1024).toFixed(1),
+            }),
+            detail:
+              stats.level === 'full'
+                ? tr('It reached its maximum size: the oldest entries are being dropped.')
+                : tr('Lower the retention period or clear it in Settings → Data & Logs.'),
+            actions: [
+              {
+                label: tr('Open settings'),
+                run: () => useUi.getState().show({ kind: 'settings', section: 'data' }),
+              },
+            ],
+          });
+      });
     }
     return useWorkspace.subscribe(() => syncTabsWithWorkspace());
   }, []);
@@ -645,6 +700,13 @@ export function App() {
       if (e.key === 'F1') {
         e.preventDefault();
         ui.show({ kind: 'help' });
+        return;
+      }
+      // F5 / Ctrl+R would reload the webview and drop every unsaved tab: re-read the workspace
+      // folder instead (files changed outside the app, e.g. by Git or Postman).
+      if (e.key === 'F5' || (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'r')) {
+        e.preventDefault();
+        if (!e.repeat) void reloadWorkspace();
         return;
       }
       if (!mod) return;
@@ -726,25 +788,30 @@ export function App() {
       </div>
     );
   }
+  // First launch: pick a language before anything else.
+  if (!langChosen) return <LanguagePicker />;
   return (
-    <div className="flex h-full flex-col">
+    // Re-keyed on language change so every component re-renders its text.
+    <div key={lang} className="flex h-full flex-col">
       <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-surface px-3">
         <img src="/icon.svg" alt="" className="size-6" />
         <span className="font-semibold">CurlStudio</span>
         <Dropdown
           items={[
-            ...NEW_ITEMS.map((n) => ({ label: n.label, onSelect: () => newTab(n.kind) })),
+            ...NEW_ITEMS.map((n) => ({ label: tr(n.label), onSelect: () => newTab(n.kind) })),
             'sep' as const,
             {
-              label: 'Collection',
+              label: tr('Collection'),
               onSelect: () =>
-                promptText('New collection', 'Name', 'My Collection', (n) => createCollection(n)),
+                promptText(tr('New collection'), tr('Name'), tr('My Collection'), (n) =>
+                  createCollection(n),
+                ),
             },
-            { label: 'Environment', onSelect: () => newEnvironmentPrompt() },
+            { label: tr('Environment'), onSelect: () => newEnvironmentPrompt() },
             {
-              label: 'Load test',
+              label: tr('Load test'),
               onSelect: () => {
-                const sc = newScenario('New load test');
+                const sc = newScenario(tr('New load test'));
                 useWorkspace.getState().saveScenario(sc);
                 useTabs.getState().open({ id: uid(), kind: 'scenario', scenarioId: sc.id });
               },
@@ -752,23 +819,24 @@ export function App() {
           ]}
         >
           <Button size="sm" variant="primary" className="ml-3">
-            <Plus className="size-3.5" /> New
+            <Plus className="size-3.5" /> {tr('New')}
           </Button>
         </Dropdown>
         <Button size="sm" onClick={() => useUi.getState().show({ kind: 'import' })}>
-          <Download className="size-3.5" /> Import
+          <Download className="size-3.5" /> {tr('Import')}
         </Button>
         {error && <span className="text-[12px] text-danger">{error}</span>}
         <div className="flex-1" />
         <EnvPicker />
-        <IconButton label="Cookies" onClick={() => useUi.getState().show({ kind: 'cookies' })}>
+        <IconButton label={tr('Cookies')} onClick={() => useUi.getState().show({ kind: 'cookies' })}>
           <Cookie className="size-4" />
         </IconButton>
-        <IconButton label="Console (Ctrl+Alt+C)" onClick={() => useConsole.getState().toggle()}>
+        <IconButton label={tr('Console (Ctrl+Alt+C)')} onClick={() => useConsole.getState().toggle()}>
           <SquareTerminal className="size-4" />
         </IconButton>
+        <ThemeToggle />
         <IconButton
-          label="Settings (Ctrl+,)"
+          label={tr('Settings (Ctrl+,)')}
           onClick={() => useUi.getState().show({ kind: 'settings' })}
         >
           <SettingsIcon className="size-4" />

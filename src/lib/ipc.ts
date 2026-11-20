@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 
+import { t } from './i18n';
 import type * as T from './types';
 import type * as L from './load/types';
 
@@ -23,7 +24,7 @@ function toError(e: unknown): IpcError {
   if (e instanceof TypeError) {
     return new IpcError({
       kind: 'bridge',
-      message: `Backend unreachable (${e.message}). Run \`pnpm bridge\` or the desktop app.`,
+      message: t('Backend unreachable ({error}). Run `pnpm bridge` or the desktop app.', { error: e.message }),
     });
   }
   return new IpcError({ kind: 'unknown', message: String(e) });
@@ -62,7 +63,8 @@ type DocName = 'globals' | 'settings' | 'history' | 'cookies' | 'workspace';
 export const api = {
   info: () => call<{ version: string; dataDir: string; os: string; arch: string; home: string | null }>('app.info'),
 
-  activityLoad: () => call<{ entries: unknown[]; stats: T.ActivityStats }>('activity.load'),
+  activityLoad: () => call<{ entries: unknown[]; pruned: number; stats: T.ActivityStats }>('activity.load'),
+  activityStats: () => call<T.ActivityStats>('activity.stats'),
   activityAppend: (entries: unknown[]) => call<T.ActivityStats>('activity.append', { entries }),
   activityClear: () => call<T.ActivityStats>('activity.clear'),
 

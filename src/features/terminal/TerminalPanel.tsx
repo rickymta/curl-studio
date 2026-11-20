@@ -2,6 +2,7 @@ import { ChevronDown, Plus, Terminal as TerminalIcon, Trash2, X } from 'lucide-r
 import { useEffect, useRef, useState } from 'react';
 
 import { Button, cn, IconButton } from '@/components/ui';
+import { t } from '@/lib/i18n';
 
 import { attach, closeSession, killAll, openSession } from './runtime';
 import { useTerminal } from './store';
@@ -34,7 +35,7 @@ export function TerminalPanel() {
   const active = sessions.find((s) => s.id === activeId) ?? sessions[0];
 
   return (
-    <section aria-label="Terminal" className="relative flex max-h-[80%] shrink-0 flex-col border-t border-border bg-background" style={{ height }}>
+    <section aria-label={t('Terminal')} className="relative flex max-h-[80%] shrink-0 flex-col border-t border-border bg-background" style={{ height }}>
       <TopHandle height={height} onResize={setHeight} onReset={() => setHeight(DEFAULT_HEIGHT)} />
       <header className="flex h-8 shrink-0 items-center gap-1 border-b border-border bg-surface pr-1">
         <div className="flex h-full min-w-0 flex-1 items-center overflow-x-auto" role="tablist">
@@ -54,7 +55,7 @@ export function TerminalPanel() {
               <TerminalIcon className="size-3.5 shrink-0" />
               <span className="max-w-40 truncate">{s.shell}</span>
               <IconButton
-                label="Close terminal"
+                label={t('Close terminal')}
                 className="size-5"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -65,18 +66,18 @@ export function TerminalPanel() {
               </IconButton>
             </div>
           ))}
-          <IconButton label="New terminal" className="mx-1" onClick={() => void openSession()}>
+          <IconButton label={t('New terminal')} className="mx-1" onClick={() => void openSession()}>
             <Plus className="size-3.5" />
           </IconButton>
         </div>
-        <IconButton label="Hide terminal (Ctrl+`)" onClick={() => useTerminal.getState().setVisible(false)}>
+        <IconButton label={t('Hide terminal (Ctrl+`)')} onClick={() => useTerminal.getState().setVisible(false)}>
           <ChevronDown className="size-4" />
         </IconButton>
-        <IconButton label="Kill all terminals" disabled={!sessions.length} onClick={killAll}>
+        <IconButton label={t('Kill all terminals')} disabled={!sessions.length} onClick={killAll}>
           <Trash2 className="size-3.5" />
         </IconButton>
         <IconButton
-          label="Close terminal panel"
+          label={t('Close terminal panel')}
           onClick={() => {
             killAll();
             useTerminal.getState().setVisible(false);
@@ -90,7 +91,7 @@ export function TerminalPanel() {
       ) : (
         <div className="flex flex-1 items-center justify-center">
           <Button size="sm" onClick={() => void openSession()}>
-            <Plus className="size-3.5" /> New terminal
+            <Plus className="size-3.5" /> {t('New terminal')}
           </Button>
         </div>
       )}
@@ -124,7 +125,7 @@ function TopHandle({ height, onResize, onReset }: { height: number; onResize: (h
     <div
       role="separator"
       aria-orientation="horizontal"
-      title="Drag to resize, double-click to reset"
+      title={t('Drag to resize, double-click to reset')}
       onPointerDown={start}
       onDoubleClick={onReset}
       className="absolute -top-[3px] left-0 z-20 h-1.5 w-full cursor-row-resize hover:bg-accent/60 active:bg-accent"

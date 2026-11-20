@@ -3,7 +3,21 @@ import type { ReactNode } from 'react';
 
 import { ChartCard, fmtClock, fmtCompact, Heatmap, HBars, Histogram, Legend, LineChart, SERIES, Sparkline, StackBar } from '@/components/charts';
 import { formatBytes, formatDuration, formatMs, formatNum, formatPct } from '@/lib/format';
+import { t as translate } from '@/lib/i18n';
 import type { Point, RunRecord, Summary } from '@/lib/load/types';
+
+// The report body is also rendered into the exported HTML report, which stays English: the
+// exporter switches `english` on around renderToStaticMarkup (see lib/load/report.ts).
+let english = false;
+export function setReportEnglish(on: boolean) {
+  english = on;
+}
+function tr(text: string, vars?: Record<string, string | number>): string {
+  if (!english) return translate(text, vars);
+  let out = text;
+  for (const [k, v] of Object.entries(vars ?? {})) out = out.split(`{${k}}`).join(String(v));
+  return out;
+}
 
 export function statusColor(code: string): string {
   const c = Number(code);
@@ -63,18 +77,18 @@ export function Kpis({ d }: { d: ReportData }) {
   const checks = s.checksPass + s.checksFail;
   return (
     <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-6">
-      <Tile label="Requests" value={formatNum(s.requests)} sub={`${formatNum(s.iterations)} iterations`} />
-      <Tile label="Throughput" value={`${formatNum(s.rps, 1)}/s`} sub={`peak ${formatNum(s.peakRps)}/s`} spark={<Sparkline values={rps} />} />
-      <Tile label="Error rate" value={formatPct(s.errorRate)} sub={`${formatNum(s.failures)} failed`} tone={s.errorRate > 0.01 ? 'bad' : 'good'} />
-      <Tile label="p95 latency" value={ms(s.latency.p95)} sub={`p99 ${ms(s.latency.p99)} · max ${ms(s.latency.max)}`} spark={<Sparkline values={p95} color="var(--series-2)" />} />
-      <Tile label="Avg latency" value={ms(s.latency.avg)} sub={`median ${ms(s.latency.p50)} · TTFB ${ms(s.waiting.avg)}`} />
+      <Tile label={tr('Requests')} value={formatNum(s.requests)} sub={tr('{n} iterations', { n: formatNum(s.iterations) })} />
+      <Tile label="Throughput" value={`${formatNum(s.rps, 1)}/s`} sub={tr('peak {n}/s', { n: formatNum(s.peakRps) })} spark={<Sparkline values={rps} />} />
+      <Tile label={tr('Error rate')} value={formatPct(s.errorRate)} sub={tr('{n} failed', { n: formatNum(s.failures) })} tone={s.errorRate > 0.01 ? 'bad' : 'good'} />
+      <Tile label={tr('p95 latency')} value={ms(s.latency.p95)} sub={`p99 ${ms(s.latency.p99)} · max ${ms(s.latency.max)}`} spark={<Sparkline values={p95} color="var(--series-2)" />} />
+      <Tile label={tr('Avg latency')} value={ms(s.latency.avg)} sub={tr('median {median} · TTFB {ttfb}', { median: ms(s.latency.p50), ttfb: ms(s.waiting.avg) })} />
       <Tile label="Apdex" value={s.apdex.score.toFixed(2)} sub={`T = ${s.apdex.tMs} ms`} tone={s.apdex.score >= 0.85 ? 'good' : s.apdex.score < 0.7 ? 'bad' : undefined} />
-      <Tile label="Virtual users" value={formatNum(s.vusMax)} sub="max concurrent" />
-      <Tile label="Checks" value={checks ? formatPct(s.checksPass / checks, 1) : '–'} sub={`${formatNum(s.checksFail)} failed of ${formatNum(checks)}`} tone={s.checksFail ? 'bad' : checks ? 'good' : undefined} />
-      <Tile label="Data received" value={formatBytes(s.bytesIn)} sub={`${formatBytes(s.bytesIn / Math.max(s.durationS, 1))}/s`} />
-      <Tile label="Data sent" value={formatBytes(s.bytesOut)} sub={`${formatBytes(s.bytesOut / Math.max(s.durationS, 1))}/s`} />
-      <Tile label="Duration" value={formatDuration(s.durationS)} sub={`iteration avg ${ms(s.iteration.avg)}`} />
-      <Tile label="Dropped iterations" value={formatNum(s.droppedIterations)} sub="arrival-rate executor" tone={s.droppedIterations ? 'bad' : undefined} />
+      <Tile label={tr('Virtual users')} value={formatNum(s.vusMax)} sub={tr('max concurrent')} />
+      <Tile label="Checks" value={checks ? formatPct(s.checksPass / checks, 1) : '–'} sub={tr('{failed} failed of {total}', { failed: formatNum(s.checksFail), total: formatNum(checks) })} tone={s.checksFail ? 'bad' : checks ? 'good' : undefined} />
+      <Tile label={tr('Data received')} value={formatBytes(s.bytesIn)} sub={`${formatBytes(s.bytesIn / Math.max(s.durationS, 1))}/s`} />
+      <Tile label={tr('Data sent')} value={formatBytes(s.bytesOut)} sub={`${formatBytes(s.bytesOut / Math.max(s.durationS, 1))}/s`} />
+      <Tile label={tr('Duration')} value={formatDuration(s.durationS)} sub={tr('iteration avg {v}', { v: ms(s.iteration.avg) })} />
+      <Tile label={tr('Dropped iterations')} value={formatNum(s.droppedIterations)} sub="arrival-rate executor" tone={s.droppedIterations ? 'bad' : undefined} />
     </div>
   );
 }
@@ -82,7 +96,7 @@ export function Kpis({ d }: { d: ReportData }) {
 export function ThresholdTable({ s, stepNames }: { s: Summary; stepNames: Record<string, string> }) {
   if (!s.thresholds.length) return null;
   return (
-    <ChartCard title="Thresholds" subtitle={s.verdict === 'passed' ? 'All thresholds passed' : `${s.thresholds.filter((t) => !t.pass).length} failed`}>
+    <ChartCard title="Thresholds" subtitle={s.verdict === 'passed' ? tr('All thresholds passed') : tr('{n} failed', { n: s.thresholds.filter((t) => !t.pass).length })}>
       <table className="w-full text-[12px]">
         <tbody>
           {s.thresholds.map((t, i) => (
@@ -93,7 +107,7 @@ export function ThresholdTable({ s, stepNames }: { s: Summary; stepNames: Record
                 {t.step ? <span className="text-muted-foreground">{`{${stepNames[t.step] ?? t.step}}`}</span> : null} {t.stat} {t.op} {t.value}
               </td>
               <td className="py-1 text-right font-mono">
-                actual{' '}
+                {tr('actual')}{' '}
                 <b className={t.pass ? 'text-success' : 'text-danger'}>
                   {t.actual === null ? 'n/a' : t.metric.includes('duration') || t.metric.includes('waiting') ? ms(t.actual) : t.stat === 'rate' && t.actual <= 1 ? formatPct(t.actual) : formatNum(t.actual, 3)}
                 </b>
@@ -121,54 +135,54 @@ export function Charts({ d, staticWidth }: { d: ReportData; staticWidth?: number
     <div className={grid}>
       <ChartCard
         title="Throughput"
-        subtitle="requests per second"
-        legend={<Legend items={[{ name: 'Requests/s', color: SERIES[0]! }, { name: 'Failed/s', color: 'var(--danger)' }, { name: 'Iterations/s', color: SERIES[2]!, dashed: true }]} />}
+        subtitle={tr('requests per second')}
+        legend={<Legend items={[{ name: 'Requests/s', color: SERIES[0]! }, { name: tr('Failed/s'), color: 'var(--danger)' }, { name: 'Iterations/s', color: SERIES[2]!, dashed: true }]} />}
       >
         <LineChart
           staticWidth={half}
           x={x}
           series={[
             { name: 'Requests/s', color: SERIES[0]!, values: tl.map((p) => p.requests), area: true },
-            { name: 'Failed/s', color: 'var(--danger)', values: tl.map((p) => p.failures) },
+            { name: tr('Failed/s'), color: 'var(--danger)', values: tl.map((p) => p.failures) },
             { name: 'Iterations/s', color: SERIES[2]!, values: tl.map((p) => p.iterations), dashed: true },
           ]}
         />
       </ChartCard>
       <ChartCard
-        title="Response time"
-        subtitle="percentiles per second"
-        legend={<Legend items={['p99', 'p95', 'p90', 'median', 'avg'].map((n, i) => ({ name: n, color: SERIES[[7, 1, 3, 0, 2][i]!]!, dashed: n === 'avg' }))} />}
+        title={tr('Response time')}
+        subtitle={tr('percentiles per second')}
+        legend={<Legend items={['p99', 'p95', 'p90', 'median', 'avg'].map((n, i) => ({ name: i > 2 ? tr(n) : n, color: SERIES[[7, 1, 3, 0, 2][i]!]!, dashed: n === 'avg' }))} />}
       >
         <LineChart
           staticWidth={half}
           x={x}
           yFormat={(v) => formatMs(v)}
-          refLines={d.thresholdP95 ? [{ value: d.thresholdP95, label: `p95 threshold ${d.thresholdP95} ms` }] : []}
+          refLines={d.thresholdP95 ? [{ value: d.thresholdP95, label: tr('p95 threshold {v} ms', { v: d.thresholdP95 }) }] : []}
           series={[
             { name: 'p99', color: SERIES[7]!, values: tl.map((p) => nz(p.p99, p.requests)) },
             { name: 'p95', color: SERIES[1]!, values: tl.map((p) => nz(p.p95, p.requests)) },
             { name: 'p90', color: SERIES[3]!, values: tl.map((p) => nz(p.p90, p.requests)) },
-            { name: 'median', color: SERIES[0]!, values: tl.map((p) => nz(p.p50, p.requests)) },
-            { name: 'avg', color: SERIES[2]!, values: tl.map((p) => nz(p.avg, p.requests)), dashed: true },
+            { name: tr('median'), color: SERIES[0]!, values: tl.map((p) => nz(p.p50, p.requests)) },
+            { name: tr('avg'), color: SERIES[2]!, values: tl.map((p) => nz(p.avg, p.requests)), dashed: true },
           ]}
         />
       </ChartCard>
-      <ChartCard title="Virtual users" subtitle="active VUs">
+      <ChartCard title={tr('Virtual users')} subtitle={tr('active VUs')}>
         <LineChart staticWidth={half} x={x} series={[{ name: 'VUs', color: SERIES[6]!, values: tl.map((p) => p.vus), area: true }]} />
       </ChartCard>
-      <ChartCard title="Error rate" subtitle="failed / total per second">
+      <ChartCard title={tr('Error rate')} subtitle={tr('failed / total per second')}>
         <LineChart
           staticWidth={half}
           x={x}
           yFormat={pctFmt}
           yMax={0.05}
-          series={[{ name: 'Error rate', color: 'var(--danger)', values: tl.map((p) => (p.requests ? p.failures / p.requests : null)), area: true }]}
+          series={[{ name: tr('Error rate'), color: 'var(--danger)', values: tl.map((p) => (p.requests ? p.failures / p.requests : null)), area: true }]}
         />
       </ChartCard>
-      <ChartCard title="Latency heatmap" subtitle="requests per latency band over time">
+      <ChartCard title={tr('Latency heatmap')} subtitle={tr('requests per latency band over time')}>
         <Heatmap staticWidth={half} x={x} rows={tl.map((p) => p.heat)} bounds={d.heatBoundsMs} />
       </ChartCard>
-      <ChartCard title="Response time distribution" subtitle={`${formatNum(s.requests)} requests`}>
+      <ChartCard title={tr('Response time distribution')} subtitle={tr('{n} requests', { n: formatNum(s.requests) })}>
         <Histogram
           staticWidth={half}
           bins={s.distribution}
@@ -179,10 +193,10 @@ export function Charts({ d, staticWidth }: { d: ReportData; staticWidth?: number
           ]}
         />
       </ChartCard>
-      <ChartCard title="Status codes over time" subtitle="stacked, per second" legend={<Legend items={statusCodes.map((c) => ({ name: c === '0' ? 'error' : c, color: statusColor(c) }))} />}>
-        <LineChart staticWidth={half} x={x} stacked series={statusCodes.map((c) => ({ name: c === '0' ? 'error' : c, color: statusColor(c), values: tl.map((p) => p.status[c] ?? 0) }))} />
+      <ChartCard title={tr('Status codes over time')} subtitle={tr('stacked, per second')} legend={<Legend items={statusCodes.map((c) => ({ name: c === '0' ? tr('error') : c, color: statusColor(c) }))} />}>
+        <LineChart staticWidth={half} x={x} stacked series={statusCodes.map((c) => ({ name: c === '0' ? tr('error') : c, color: statusColor(c), values: tl.map((p) => p.status[c] ?? 0) }))} />
       </ChartCard>
-      <ChartCard title="Response time by request" subtitle="average per second" legend={<Legend items={stepIds.map((id, i) => ({ name: d.stepNames[id] ?? id, color: SERIES[i]! }))} />}>
+      <ChartCard title={tr('Response time by request')} subtitle={tr('average per second')} legend={<Legend items={stepIds.map((id, i) => ({ name: d.stepNames[id] ?? id, color: SERIES[i]! }))} />}>
         <LineChart
           staticWidth={half}
           x={x}
@@ -190,34 +204,34 @@ export function Charts({ d, staticWidth }: { d: ReportData; staticWidth?: number
           series={stepIds.map((id, i) => ({ name: d.stepNames[id] ?? id, color: SERIES[i]!, values: tl.map((p) => (p.steps[id]?.count ? p.steps[id]!.avg : null)) }))}
         />
       </ChartCard>
-      <ChartCard title="Response time vs virtual users" subtitle="p95 for each second, by concurrency (JMeter “response time vs threads”)">
+      <ChartCard title={tr('Response time vs virtual users')} subtitle={tr('p95 for each second, by concurrency (JMeter “response time vs threads”)')}>
         <VsChart points={tl.filter((p) => p.requests > 0).map((p) => ({ x: p.vus, y: p.p95 }))} staticWidth={half} xLabel="VUs" />
       </ChartCard>
-      <ChartCard title="Bandwidth" subtitle="bytes per second" legend={<Legend items={[{ name: 'Received', color: SERIES[0]! }, { name: 'Sent', color: SERIES[1]! }]} />}>
+      <ChartCard title={tr('Bandwidth')} subtitle={tr('bytes per second')} legend={<Legend items={[{ name: tr('Received'), color: SERIES[0]! }, { name: tr('Sent'), color: SERIES[1]! }]} />}>
         <LineChart
           staticWidth={half}
           x={x}
           yFormat={(v) => formatBytes(v)}
           series={[
-            { name: 'Received', color: SERIES[0]!, values: tl.map((p) => p.bytesIn) },
-            { name: 'Sent', color: SERIES[1]!, values: tl.map((p) => p.bytesOut) },
+            { name: tr('Received'), color: SERIES[0]!, values: tl.map((p) => p.bytesIn) },
+            { name: tr('Sent'), color: SERIES[1]!, values: tl.map((p) => p.bytesOut) },
           ]}
         />
       </ChartCard>
-      <ChartCard title="Apdex" subtitle={`score per second (T = ${s.apdex.tMs} ms)`}>
+      <ChartCard title="Apdex" subtitle={tr('score per second (T = {t} ms)', { t: s.apdex.tMs })}>
         <LineChart staticWidth={half} x={x} yMax={1} yFormat={(v) => v.toFixed(2)} series={[{ name: 'Apdex', color: SERIES[2]!, values: tl.map((p) => p.apdex) }]} />
         <div className="mt-2">
           <StackBar
             parts={[
-              { label: 'Satisfied', value: s.apdex.satisfied, color: 'var(--success)' },
-              { label: 'Tolerating', value: s.apdex.tolerating, color: 'var(--warning)' },
-              { label: 'Frustrated', value: s.apdex.frustrated, color: 'var(--danger)' },
+              { label: tr('Satisfied'), value: s.apdex.satisfied, color: 'var(--success)' },
+              { label: tr('Tolerating'), value: s.apdex.tolerating, color: 'var(--warning)' },
+              { label: tr('Frustrated'), value: s.apdex.frustrated, color: 'var(--danger)' },
             ]}
           />
         </div>
       </ChartCard>
-      <ChartCard title="Status code distribution">
-        <HBars items={Object.entries(s.status).sort((a, b) => b[1] - a[1]).map(([c, n]) => ({ label: c === '0' ? 'Network error' : `HTTP ${c}`, value: n, color: statusColor(c) }))} format={(v) => formatNum(v)} />
+      <ChartCard title={tr('Status code distribution')}>
+        <HBars items={Object.entries(s.status).sort((a, b) => b[1] - a[1]).map(([c, n]) => ({ label: c === '0' ? tr('Network error') : `HTTP ${c}`, value: n, color: statusColor(c) }))} format={(v) => formatNum(v)} />
       </ChartCard>
     </div>
   );
@@ -228,7 +242,7 @@ export function VsChart({ points, staticWidth, xLabel }: { points: { x: number; 
   const w = staticWidth ?? 520;
   const h = 190;
   const P = { l: 52, r: 12, t: 8, b: 24 };
-  if (!points.length) return <div className="p-6 text-center text-[12px] text-muted-foreground">No data</div>;
+  if (!points.length) return <div className="p-6 text-center text-[12px] text-muted-foreground">{tr('No data')}</div>;
   const maxX = Math.max(...points.map((p) => p.x), 1);
   const maxY = Math.max(...points.map((p) => p.y), 1);
   const sx = (v: number) => P.l + (v / maxX) * (w - P.l - P.r);
@@ -260,7 +274,7 @@ export function VsChart({ points, staticWidth, xLabel }: { points: { x: number; 
 
 /** JMeter-style aggregate report. */
 export function AggregateTable({ s }: { s: Summary }) {
-  const cols = ['Request', 'Samples', 'Avg', 'Median', 'p90', 'p95', 'p99', 'Min', 'Max', 'Std dev', 'Error %', 'Throughput', 'Recv KB/s', 'Sent KB/s', 'Apdex'];
+  const cols = [tr('Request'), tr('Samples'), tr('Avg'), tr('Median'), 'p90', 'p95', 'p99', tr('Min'), tr('Max'), tr('Std dev'), tr('Error %'), 'Throughput', tr('Recv KB/s'), tr('Sent KB/s'), 'Apdex'];
   const dur = Math.max(s.durationS, 0.001);
   const row = (name: ReactNode, st: Summary['steps'][number] | null) => {
     const l = st ? st.latency : s.latency;
@@ -273,7 +287,7 @@ export function AggregateTable({ s }: { s: Summary }) {
     return [name, formatNum(count), ms(l.avg), ms(l.p50), ms(l.p90), ms(l.p95), ms(l.p99), ms(l.min), ms(l.max), ms(l.stddev), formatPct(er), `${formatNum(rps, 1)}/s`, formatNum(bi / 1024 / dur, 1), formatNum(bo / 1024 / dur, 1), ap.toFixed(2)];
   };
   return (
-    <ChartCard title="Aggregate report" subtitle="per request (JMeter aggregate report / k6 per-request metrics)">
+    <ChartCard title={tr('Aggregate report')} subtitle={tr('per request (JMeter aggregate report / k6 per-request metrics)')}>
       <div className="overflow-auto">
         <table className="w-full text-[12px] whitespace-nowrap">
           <thead>
@@ -302,7 +316,7 @@ export function AggregateTable({ s }: { s: Summary }) {
               </tr>
             ))}
             <tr className="bg-surface-muted font-semibold">
-              {row(<span className="font-sans">TOTAL</span>, null).map((c, i) => (
+              {row(<span className="font-sans">{tr('TOTAL')}</span>, null).map((c, i) => (
                 <td key={i} className={`px-2 py-1 ${i ? 'text-right' : ''}`}>
                   {c}
                 </td>
@@ -318,9 +332,9 @@ export function AggregateTable({ s }: { s: Summary }) {
 export function ChecksAndErrors({ s, stepNames }: { s: Summary; stepNames: Record<string, string> }) {
   return (
     <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-      <ChartCard title="Checks" subtitle={`${formatNum(s.checksPass)} passed · ${formatNum(s.checksFail)} failed`}>
+      <ChartCard title="Checks" subtitle={tr('{pass} passed · {fail} failed', { pass: formatNum(s.checksPass), fail: formatNum(s.checksFail) })}>
         {s.checks.length === 0 ? (
-          <div className="text-[12px] text-muted-foreground">No checks defined.</div>
+          <div className="text-[12px] text-muted-foreground">{tr('No checks defined.')}</div>
         ) : (
           <table className="w-full text-[12px]">
             <tbody>
@@ -342,9 +356,9 @@ export function ChecksAndErrors({ s, stepNames }: { s: Summary; stepNames: Recor
           </table>
         )}
       </ChartCard>
-      <ChartCard title="Errors" subtitle={s.errors.length ? `top ${Math.min(15, s.errors.length)} by count` : 'none'}>
+      <ChartCard title={tr('Errors')} subtitle={s.errors.length ? tr('top {n} by count', { n: Math.min(15, s.errors.length) }) : tr('none')}>
         {s.errors.length === 0 ? (
-          <div className="text-[12px] text-success">No failed requests.</div>
+          <div className="text-[12px] text-success">{tr('No failed requests.')}</div>
         ) : (
           <table className="w-full text-[12px]">
             <tbody>

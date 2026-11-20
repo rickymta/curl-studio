@@ -33,6 +33,7 @@ export const SHORTCUTS: ShortcutGroup[] = [
       { label: 'Search the sidebar', keys: [['Ctrl', 'K']] },
       { label: 'Show / hide the sidebar', keys: [['Ctrl', '\\']] },
       { label: 'Find in editor / response', keys: [['Ctrl', 'F']] },
+      { label: 'Reload the workspace from disk', keys: [['F5'], ['Ctrl', 'R']] },
       { label: 'Close dialog or menu', keys: [['Esc']] },
     ],
   },

@@ -2,6 +2,7 @@ import { AlertCircle, CheckCircle2, FolderOpen, Keyboard, ListChecks, Send } fro
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { Button, cn, Input, Modal, Spinner, Tabs, Textarea } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { api } from '@/lib/ipc';
 import { revealPath } from '@/lib/native';
 import { useUi } from '@/stores/ui';
@@ -33,7 +34,7 @@ function FormField({ label, error, htmlFor, children }: { label: string; error?:
       {children}
       {error && (
         <span id={`${htmlFor}-error`} role="alert" className="text-[12px] text-danger">
-          {error}
+          {t(error)}
         </span>
       )}
     </div>
@@ -58,20 +59,20 @@ export function About() {
         <img src="/icon.svg" alt="" className="size-10" />
         <div>
           <div className="text-[16px] font-semibold">CurlStudio</div>
-          <div className="text-[12.5px] text-muted-foreground">API client and load-testing studio · Postman, JMeter and k6 ideas in one app</div>
+          <div className="text-[12.5px] text-muted-foreground">{t('API client and load-testing studio · Postman, JMeter and k6 ideas in one app')}</div>
         </div>
       </div>
       <div className="rounded-md border border-border px-3 text-[13px]">
-        {row('App version', __APP_VERSION__)}
-        {row('Core version', info?.version ?? '…')}
-        {row('System', info ? `${info.os} (${info.arch})` : '…')}
+        {row(t('App version'), __APP_VERSION__)}
+        {row(t('Core version'), info?.version ?? '…')}
+        {row(t('System'), info ? `${info.os} (${info.arch})` : '…')}
         {row(
-          'Workspace folder',
+          t('Workspace folder'),
           <span className="flex items-center gap-2">
             <span className="min-w-0 flex-1">{info?.dataDir ?? '…'}</span>
             {info && (
               <Button size="sm" variant="ghost" onClick={() => revealPath(info.dataDir)}>
-                <FolderOpen className="size-3.5" /> Open
+                <FolderOpen className="size-3.5" /> {t('Open')}
               </Button>
             )}
           </span>,
@@ -79,10 +80,10 @@ export function About() {
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => show({ kind: 'shortcuts' })}>
-          <Keyboard className="size-3.5" /> Keyboard shortcuts
+          <Keyboard className="size-3.5" /> {t('Keyboard shortcuts')}
         </Button>
         <Button size="sm" onClick={() => show({ kind: 'activity' })}>
-          <ListChecks className="size-3.5" /> Activity logs
+          <ListChecks className="size-3.5" /> {t('Activity logs')}
         </Button>
       </div>
     </div>
@@ -144,14 +145,14 @@ export function HelpDialog({ onClose, initialTab = 'contact' }: { onClose: () =>
   });
 
   return (
-    <Modal open onClose={close} width={620} title="Help & Support" description="Report a problem, suggest a feature or ask a question. We reply by email.">
+    <Modal open onClose={close} width={620} title={t('Help & Support')} description={t('Report a problem, suggest a feature or ask a question. We reply by email.')}>
       <div className="-mx-1 mb-3">
         <Tabs
           value={tab}
           onChange={setTab}
           items={[
-            { id: 'contact', label: 'Contact support' },
-            { id: 'about', label: 'About' },
+            { id: 'contact', label: t('Contact support') },
+            { id: 'about', label: t('About') },
           ]}
         />
       </div>
@@ -160,8 +161,8 @@ export function HelpDialog({ onClose, initialTab = 'contact' }: { onClose: () =>
       ) : status.kind === 'sent' ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <CheckCircle2 className="size-10 text-success" />
-          <div className="text-[15px] font-semibold">Message sent</div>
-          <p className="max-w-sm text-muted-foreground">Thanks! We will reply to {form.email.trim()}.</p>
+          <div className="text-[15px] font-semibold">{t('Message sent')}</div>
+          <p className="max-w-sm text-muted-foreground">{t('Thanks! We will reply to {email}.', { email: form.email.trim() })}</p>
           <div className="mt-2 flex gap-2">
             <Button
               onClick={() => {
@@ -169,24 +170,24 @@ export function HelpDialog({ onClose, initialTab = 'contact' }: { onClose: () =>
                 setStatus({ kind: 'idle' });
               }}
             >
-              Send another
+              {t('Send another')}
             </Button>
             <Button variant="primary" onClick={close} data-autofocus>
-              Close
+              {t('Close')}
             </Button>
           </div>
         </div>
       ) : (
         <form noValidate onSubmit={submit} className="flex flex-col gap-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <FormField label="Name" htmlFor="help-name" error={errors.name}>
+            <FormField label={t('Name')} htmlFor="help-name" error={errors.name}>
               <Input {...aria('name')} maxLength={LIMITS.name} autoComplete="name" value={form.name} onChange={(e) => set('name', e.target.value)} />
             </FormField>
-            <FormField label="Email" htmlFor="help-email" error={errors.email}>
+            <FormField label={t('Email')} htmlFor="help-email" error={errors.email}>
               <Input {...aria('email')} type="email" autoComplete="email" spellCheck={false} placeholder="you@example.com" value={form.email} onChange={(e) => set('email', e.target.value)} />
             </FormField>
           </div>
-          <FormField label="What do you need help with?" htmlFor="help-topic" error={errors.topic}>
+          <FormField label={t('What do you need help with?')} htmlFor="help-topic" error={errors.topic}>
             <select
               {...aria('topic')}
               value={form.topic}
@@ -194,24 +195,24 @@ export function HelpDialog({ onClose, initialTab = 'contact' }: { onClose: () =>
               className={cn('h-8 rounded-md border border-border bg-background px-2 outline-none focus:border-accent', errors.topic && 'border-danger', !form.topic && 'text-muted-foreground')}
             >
               <option value="" disabled>
-                Choose a topic
+                {t('Choose a topic')}
               </option>
               {TOPICS.map((o) => (
                 <option key={o.value} value={o.value} className="text-foreground">
-                  {o.label}
+                  {t(o.label)}
                 </option>
               ))}
             </select>
           </FormField>
-          <FormField label="Subject" htmlFor="help-subject" error={errors.subject}>
+          <FormField label={t('Subject')} htmlFor="help-subject" error={errors.subject}>
             <Input {...aria('subject')} maxLength={LIMITS.subject} value={form.subject} onChange={(e) => set('subject', e.target.value)} />
           </FormField>
-          <FormField label="Message" htmlFor="help-message" error={errors.message}>
+          <FormField label={t('Message')} htmlFor="help-message" error={errors.message}>
             <Textarea
               {...aria('message')}
               rows={6}
               maxLength={LIMITS.message}
-              placeholder="Describe the problem or idea. For a bug, list the steps to reproduce it."
+              placeholder={t('Describe the problem or idea. For a bug, list the steps to reproduce it.')}
               value={form.message}
               onChange={(e) => set('message', e.target.value)}
             />
@@ -219,7 +220,7 @@ export function HelpDialog({ onClose, initialTab = 'contact' }: { onClose: () =>
           <label className="flex items-start gap-2 text-[12px] text-muted-foreground">
             <input type="checkbox" className="mt-0.5 size-3.5 accent-[var(--accent)]" checked={form.includeSystem} disabled={sending} onChange={(e) => set('includeSystem', e.target.checked)} />
             <span>
-              Attach app version and operating system
+              {t('Attach app version and operating system')}
               <span className="block font-mono">
                 CurlStudio {__APP_VERSION__}
                 {system && ` · ${system.os} (${system.arch})`}
@@ -230,18 +231,18 @@ export function HelpDialog({ onClose, initialTab = 'contact' }: { onClose: () =>
             <div role="alert" className="flex items-start gap-2 rounded-md border border-danger/50 bg-danger-soft px-3 py-2 text-danger">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <div className="min-w-0">
-                <div className="font-medium">Could not send your message.</div>
+                <div className="font-medium">{t('Could not send your message.')}</div>
                 <div className="text-[12px] break-words opacity-90">{status.message}</div>
               </div>
             </div>
           )}
           <div className="mt-1 flex justify-end gap-2">
             <Button onClick={close} disabled={sending}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button type="submit" variant="primary" disabled={sending}>
               {sending ? <Spinner className="size-3.5" /> : <Send className="size-3.5" />}
-              {sending ? 'Sending…' : status.kind === 'error' ? 'Try again' : 'Submit'}
+              {sending ? t('Sending…') : status.kind === 'error' ? t('Try again') : t('Submit')}
             </Button>
           </div>
         </form>

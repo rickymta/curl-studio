@@ -9,6 +9,7 @@ import {
   setVar,
   type VarScopeName,
 } from '@/features/request/varScope';
+import { t } from '@/lib/i18n';
 import { DYNAMIC } from '@/lib/vars';
 import { uid } from '@/lib/postman';
 import { useTabs } from '@/stores/tabs';
@@ -90,7 +91,7 @@ export function VarPopover({
     <div
       ref={box}
       role="dialog"
-      aria-label={`Variable ${hover.name}`}
+      aria-label={t('Variable {name}', { name: hover.name })}
       data-var-popover
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
@@ -101,18 +102,18 @@ export function VarPopover({
       {info.dynamic ? (
         <div className="space-y-1">
           <div className="flex items-center gap-1.5 font-medium">
-            <Sparkles className="size-3.5 text-accent" /> Dynamic variable
+            <Sparkles className="size-3.5 text-accent" /> {t('Dynamic variable')}
           </div>
           <div className="text-muted-foreground">
             {dyn
-              ? `A new value is generated for each request, e.g. ${String(dyn())}`
-              : 'Not a known dynamic variable.'}
+              ? t('A new value is generated for each request, e.g. {example}', { example: String(dyn()) })
+              : t('Not a known dynamic variable.')}
           </div>
         </div>
       ) : (
         <>
           {info.scope === 'environment' || info.scope === 'globals' ? (
-            <div className="mb-1 text-[11px] text-muted-foreground">Current value</div>
+            <div className="mb-1 text-[11px] text-muted-foreground">{t('Current value')}</div>
           ) : null}
           <div className="relative">
             <input
@@ -120,7 +121,7 @@ export function VarPopover({
               type={info.secret && !reveal ? 'password' : 'text'}
               value={draft}
               spellCheck={false}
-              placeholder="Enter value"
+              placeholder={t('Enter value')}
               onChange={(e) => setDraft(e.target.value)}
               onBlur={commit}
               onKeyDown={(e) => {
@@ -140,8 +141,8 @@ export function VarPopover({
             {info.secret && (
               <button
                 type="button"
-                aria-label={reveal ? 'Hide value' : 'Show value'}
-                title={reveal ? 'Hide value' : 'Show value'}
+                aria-label={reveal ? t('Hide value') : t('Show value')}
+                title={reveal ? t('Hide value') : t('Show value')}
                 onClick={() => setReveal(!reveal)}
                 className="absolute top-1.5 right-2 text-muted-foreground hover:text-foreground"
               >
@@ -151,26 +152,25 @@ export function VarPopover({
           </div>
           {info.initial !== undefined && (
             <div className="mt-1.5 flex gap-2 text-[11.5px] text-muted-foreground">
-              <span className="shrink-0">Initial value</span>
+              <span className="shrink-0">{t('Initial value')}</span>
               <span
                 className="min-w-0 flex-1 truncate font-mono"
                 title={info.secret && !reveal ? undefined : info.initial}
               >
-                {info.secret && !reveal ? '••••••' : info.initial || '(empty)'}
+                {info.secret && !reveal ? '••••••' : info.initial || t('(empty)')}
               </span>
               <button
                 type="button"
                 className="shrink-0 text-accent hover:underline"
                 onClick={() => setDraft(info.initial ?? '')}
               >
-                Use
+                {t('Use')}
               </button>
             </div>
           )}
           {!info.scope && (
             <div className="mt-2 flex items-center gap-1.5 text-danger">
-              <TriangleAlert className="size-3.5" /> Unresolved variable — type a value to add it
-              to:
+              <TriangleAlert className="size-3.5" /> {t('Unresolved variable — type a value to add it to:')}
             </div>
           )}
           <div className="mt-2 flex items-center gap-2">
@@ -185,17 +185,17 @@ export function VarPopover({
               {SCOPE_LETTER[scope]}
             </span>
             {info.scope || info.writable.length < 2 ? (
-              <span>{SCOPE_LABEL[scope]}</span>
+              <span>{t(SCOPE_LABEL[scope])}</span>
             ) : (
               <select
                 value={target}
                 onChange={(e) => setTarget(e.target.value as VarScopeName)}
                 className="rounded border border-border bg-background px-1 py-0.5 text-[12px] outline-none"
-                aria-label="Scope for the new variable"
+                aria-label={t('Scope for the new variable')}
               >
                 {info.writable.map((s) => (
                   <option key={s} value={s}>
-                    {SCOPE_LABEL[s]}
+                    {t(SCOPE_LABEL[s])}
                   </option>
                 ))}
               </select>
@@ -206,7 +206,7 @@ export function VarPopover({
               onClick={openSource}
               className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
             >
-              Open {SCOPE_LABEL[scope].toLowerCase()} <ArrowRight className="size-3" />
+              {t('Open {scope}', { scope: t(SCOPE_LABEL[scope]).toLowerCase() })} <ArrowRight className="size-3" />
             </button>
           </div>
         </>

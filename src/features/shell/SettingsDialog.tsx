@@ -3,12 +3,13 @@ import { Dialog } from 'radix-ui';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { Button, Checkbox, cn, IconButton, Input, Select } from '@/components/ui';
-import { exportEverything } from '@/features/actions';
+import { confirmAction, exportEverything } from '@/features/actions';
 import { systemFont } from '@/features/terminal/font';
+import { type Lang, LANGUAGES, t, useLang, useLangStore } from '@/lib/i18n';
 import { api } from '@/lib/ipc';
 import { pickFiles, revealPath } from '@/lib/native';
 import type { Settings } from '@/lib/types';
-import { useActivity } from '@/stores/activity';
+import { refreshActivityStats, useActivity } from '@/stores/activity';
 import { type SettingsSection, useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 
@@ -81,36 +82,36 @@ function General() {
   const [s, set] = useSettings();
   return (
     <>
-      <Title>General</Title>
-      <Row label="Request timeout" help="Milliseconds; a request can override it in its Settings tab.">
+      <Title>{t('General')}</Title>
+      <Row label={t('Request timeout')} help={t('Milliseconds; a request can override it in its Settings tab.')}>
         <NumberField value={s.timeoutMs} min={100} onSave={(v) => set('timeoutMs', v)} />
       </Row>
-      <Row label="Redirects">
+      <Row label={t('Redirects')}>
         <div className="flex flex-wrap items-center gap-4">
-          <Checkbox checked={s.followRedirects} onChange={(x) => set('followRedirects', x)} label="Follow redirects" />
+          <Checkbox checked={s.followRedirects} onChange={(x) => set('followRedirects', x)} label={t('Follow redirects')} />
           <span className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
-            max <NumberField value={s.maxRedirects} min={1} max={100} onSave={(v) => set('maxRedirects', v)} />
+            {t('max')} <NumberField value={s.maxRedirects} min={1} max={100} onSave={(v) => set('maxRedirects', v)} />
           </span>
         </div>
       </Row>
-      <Row label="Proxy" help="Empty = system proxy · none = direct · http://host:port · socks5://…">
-        <TextField className="w-full" value={s.proxy} onSave={(v) => set('proxy', v.trim())} placeholder="system proxy" />
+      <Row label={t('Proxy')} help={t('Empty = system proxy · none = direct · http://host:port · socks5://…')}>
+        <TextField className="w-full" value={s.proxy} onSave={(v) => set('proxy', v.trim())} placeholder={t('system proxy')} />
       </Row>
-      <Row label="Connection">
+      <Row label={t('Connection')}>
         <div className="flex flex-col gap-2">
-          <Checkbox checked={s.verifyTls} onChange={(x) => set('verifyTls', x)} label="SSL certificate verification" />
-          <Checkbox checked={s.cookies} onChange={(x) => set('cookies', x)} label="Use the cookie jar" />
-          <Checkbox checked={s.http1Only} onChange={(x) => set('http1Only', x)} label="Force HTTP/1.1" />
+          <Checkbox checked={s.verifyTls} onChange={(x) => set('verifyTls', x)} label={t('SSL certificate verification')} />
+          <Checkbox checked={s.cookies} onChange={(x) => set('cookies', x)} label={t('Use the cookie jar')} />
+          <Checkbox checked={s.http1Only} onChange={(x) => set('http1Only', x)} label={t('Force HTTP/1.1')} />
         </div>
       </Row>
-      <Row label="Largest response shown" help="Megabytes. Bigger bodies can still be saved to a file.">
+      <Row label={t('Largest response shown')} help={t('Megabytes. Bigger bodies can still be saved to a file.')}>
         <NumberField value={s.maxBodyMb} min={1} max={2048} onSave={(v) => set('maxBodyMb', v)} />
       </Row>
-      <Row label="History entries kept">
+      <Row label={t('History entries kept')}>
         <NumberField value={s.historyLimit} min={10} max={10000} onSave={(v) => set('historyLimit', v)} />
       </Row>
-      <Row label="Closing tabs" help="When off, tabs with unsaved changes ask “Save changes?”.">
-        <Checkbox checked={s.discardUnsavedOnClose} onChange={(x) => set('discardUnsavedOnClose', x)} label="Always discard unsaved changes when closing a tab" />
+      <Row label={t('Closing tabs')} help={t('When off, tabs with unsaved changes ask “Save changes?”.')}>
+        <Checkbox checked={s.discardUnsavedOnClose} onChange={(x) => set('discardUnsavedOnClose', x)} label={t('Always discard unsaved changes when closing a tab')} />
       </Row>
     </>
   );
@@ -127,12 +128,12 @@ function Brightness({ value, onChange }: { value: number; onChange: (v: number) 
         value={value}
         onChange={(e) => onChange(clampBrightness(Number(e.target.value)))}
         className="w-64 accent-[var(--accent)]"
-        aria-label="Brightness"
+        aria-label={t('Brightness')}
       />
       <span className="w-12 text-right font-mono text-[12px] tabular-nums">{value}%</span>
       {value !== 100 && (
         <Button size="sm" variant="ghost" onClick={() => onChange(100)}>
-          Reset
+          {t('Reset')}
         </Button>
       )}
     </div>
@@ -141,28 +142,37 @@ function Brightness({ value, onChange }: { value: number; onChange: (v: number) 
 
 function Appearance() {
   const [s, set] = useSettings();
+  const lang = useLang();
+  const setLang = useLangStore((x) => x.setLang);
   return (
     <>
-      <Title>Appearance</Title>
-      <Row label="Theme" help="System follows the operating system's light/dark setting.">
+      <Title>{t('Appearance')}</Title>
+      <Row label={t('Language')} help="Ngôn ngữ giao diện · Interface language">
+        <Select value={lang} onChange={(v) => {
+            // The app re-mounts on a language change: come back to this section.
+            useUi.getState().show({ kind: 'settings', section: 'appearance' });
+            setLang(v as Lang);
+          }} options={LANGUAGES.map((l) => ({ value: l.id, label: l.native === l.label ? l.native : `${l.native} (${l.label})` }))} className="w-48" />
+      </Row>
+      <Row label={t('Theme')} help={t("System follows the operating system's light/dark setting.")}>
         <Select
           value={s.theme}
           onChange={(x) => set('theme', x as Settings['theme'])}
           options={[
-            { value: 'dark', label: 'Dark' },
-            { value: 'light', label: 'Light' },
-            { value: 'system', label: 'System' },
+            { value: 'dark', label: t('Dark') },
+            { value: 'light', label: t('Light') },
+            { value: 'system', label: t('System') },
           ]}
           className="w-48"
         />
       </Row>
-      <Row label="Brightness — dark theme" help="Dims or brightens the whole window while the dark theme is on.">
+      <Row label={t('Brightness — dark theme')} help={t('Dims or brightens the whole window while the dark theme is on.')}>
         <Brightness value={s.brightnessDark} onChange={(v) => set('brightnessDark', v)} />
       </Row>
-      <Row label="Brightness — light theme" help="Each theme keeps its own value.">
+      <Row label={t('Brightness — light theme')} help={t('Each theme keeps its own value.')}>
         <Brightness value={s.brightnessLight} onChange={(v) => set('brightnessLight', v)} />
       </Row>
-      <Row label="Zoom" help="Ctrl + / Ctrl − / Ctrl 0 anywhere, or the status bar.">
+      <Row label={t('Zoom')} help={t('Ctrl + / Ctrl − / Ctrl 0 anywhere, or the status bar.')}>
         <Select
           value={String(s.zoom)}
           onChange={(v) => set('zoom', clampZoom(Number(v)))}
@@ -171,7 +181,7 @@ function Appearance() {
           className="w-48"
         />
       </Row>
-      <Row label="Editor font size" help="Body, script and response editors (pixels).">
+      <Row label={t('Editor font size')} help={t('Body, script and response editors (pixels).')}>
         <Select value={String(s.fontSize)} onChange={(v) => set('fontSize', Number(v))} options={[11, 12, 13, 14, 15, 16, 18].map((n) => ({ value: String(n), label: `${n} px` }))} className="w-48" />
       </Row>
     </>
@@ -184,17 +194,17 @@ function TerminalPrefs() {
   useEffect(() => {
     systemFont()
       .then((f) => setFont(`${f.fontFamily.split(',')[0]} · ${f.fontSize}px`))
-      .catch(() => setFont('default'));
+      .catch(() => setFont(t('default')));
   }, [s.terminalShell]);
   return (
     <>
-      <Title>Terminal</Title>
-      <Row label="Shell" help="Used for new sessions of the in-app terminal (Ctrl+`).">
+      <Title>{t('Terminal')}</Title>
+      <Row label={t('Shell')} help={t('Used for new sessions of the in-app terminal (Ctrl+`).')}>
         <Select
           value={s.terminalShell}
           onChange={(v) => set('terminalShell', v)}
           options={[
-            { value: 'auto', label: 'Automatic (PowerShell on Windows, $SHELL elsewhere)' },
+            { value: 'auto', label: t('Automatic (PowerShell on Windows, $SHELL elsewhere)') },
             { value: 'powershell', label: 'Windows PowerShell' },
             { value: 'pwsh', label: 'PowerShell 7 (pwsh)' },
             { value: 'cmd', label: 'Command Prompt' },
@@ -203,68 +213,123 @@ function TerminalPrefs() {
           className="w-80"
         />
       </Row>
-      <Row label="Start in folder" help="Empty = your home folder.">
+      <Row label={t('Start in folder')} help={t('Empty = your home folder.')}>
         <div className="flex gap-2">
-          <TextField className="min-w-0 flex-1 font-mono" value={s.terminalCwd} onSave={(v) => set('terminalCwd', v.trim())} placeholder="home folder" />
+          <TextField className="min-w-0 flex-1 font-mono" value={s.terminalCwd} onSave={(v) => set('terminalCwd', v.trim())} placeholder={t('home folder')} />
           <Button
             onClick={async () => {
-              const [p] = await pickFiles({ title: 'Folder new terminals start in', directory: true });
+              const [p] = await pickFiles({ title: t('Folder new terminals start in'), directory: true });
               if (p) set('terminalCwd', p);
             }}
           >
-            Browse
+            {t('Browse')}
           </Button>
         </div>
       </Row>
-      <Row label="Font" help="Taken from your Windows Terminal profile when there is one, so prompt icons render.">
+      <Row label={t('Font')} help={t('Taken from your Windows Terminal profile when there is one, so prompt icons render.')}>
         <span className="font-mono text-[12.5px]">{font}</span>
       </Row>
     </>
   );
 }
 
+const fmtSize = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`);
+
 function DataPrefs() {
+  const [s, set] = useSettings();
   const [dataDir, setDataDir] = useState('');
   const stats = useActivity((s) => s.stats);
   const entries = useActivity((s) => s.items.length);
-  const history = useWorkspace((s) => s.history.length);
+  const history = useWorkspace((x) => x.history.length);
+  const pct = stats ? Math.min(100, (stats.bytes / stats.maxBytes) * 100) : 0;
   useEffect(() => {
     api.info().then((i) => setDataDir(i.dataDir)).catch(() => undefined);
+    refreshActivityStats();
   }, []);
+  // The backend reads the limits from settings.json: re-read the stats once it is written.
+  const setLimit = (k: 'activityRetentionDays' | 'activityWarnMb' | 'activityLoadLimit', v: number) => {
+    set(k, v);
+    setTimeout(refreshActivityStats, 300);
+  };
   return (
     <>
-      <Title>Data & Logs</Title>
-      <Row label="Workspace folder" help="Collections (Postman v2.1 files), environments, load runs, settings.">
+      <Title>{t('Data & Logs')}</Title>
+      <Row label={t('Workspace folder')} help={t('Collections (Postman v2.1 files), environments, load runs, settings.')}>
         <div className="flex items-center gap-2">
           <span className="selectable min-w-0 flex-1 truncate font-mono text-[12px]" title={dataDir}>
             {dataDir || '…'}
           </span>
           <Button size="sm" onClick={() => revealPath(dataDir)}>
-            <FolderOpen className="size-3.5" /> Open
+            <FolderOpen className="size-3.5" /> {t('Open')}
           </Button>
         </div>
       </Row>
-      <Row label="Backup" help="Every collection, environment and globals in one Postman data dump.">
+      <Row label={t('Backup')} help={t('Every collection, environment and globals in one Postman data dump.')}>
         <Button size="sm" onClick={exportEverything}>
-          Export all (Postman dump)
+          {t('Export all (Postman dump)')}
         </Button>
       </Row>
-      <Row label="Activity Logs" help={stats ? `activity.jsonl · ${(stats.bytes / 1024).toFixed(0)} KB · kept ${stats.retentionDays} days, at most ${stats.maxBytes / 1024 / 1024} MB` : 'activity.jsonl in the workspace folder'}>
+      <Row label={t('Activity Logs')} help={t('Requests, load tests and app events are appended to activity.jsonl in the workspace folder and read back at startup.')}>
         <div className="flex items-center gap-2">
-          <span className="text-[12.5px] text-muted-foreground">{entries} entries</span>
+          <span className="text-[12.5px] text-muted-foreground">
+            {stats ? t('{used} of {max}', { used: fmtSize(stats.bytes), max: fmtSize(stats.maxBytes) }) : '…'} · {t('{n} entries loaded', { n: entries })}
+          </span>
           <Button size="sm" onClick={() => useUi.getState().show({ kind: 'activity' })}>
-            <ListChecks className="size-3.5" /> Open
+            <ListChecks className="size-3.5" /> {t('Open')}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => useActivity.getState().clear()}>
-            <Trash2 className="size-3.5" /> Clear
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() =>
+              confirmAction(t('Clear Activity Logs'), t('Delete every entry of the Activity Logs (also from activity.jsonl)? This cannot be undone.'), () => useActivity.getState().clear(), true, t('Delete'), {
+                kind: 'settings',
+                section: 'data',
+              })
+            }
+          >
+            <Trash2 className="size-3.5" /> {t('Clear')}
           </Button>
         </div>
+        {stats && (
+          <div className="mt-2 flex items-center gap-3">
+            <div className="h-1.5 w-64 overflow-hidden rounded-full bg-surface-muted" role="progressbar" aria-label={t('Activity Logs file size')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}>
+              <div className={cn('h-full', stats.level === 'full' ? 'bg-danger' : stats.level === 'warn' ? 'bg-warning' : 'bg-success')} style={{ width: `${pct}%` }} />
+            </div>
+            {stats.level !== 'ok' && (
+              <span className={cn('text-[12px]', stats.level === 'full' ? 'text-danger' : 'text-warning')}>
+                {stats.level === 'full' ? t('At the size limit: the oldest entries are being dropped') : t('Over the warning size')}
+              </span>
+            )}
+          </div>
+        )}
       </Row>
-      <Row label="Request history">
+      <Row label={t('Delete logs after (days)')} help={t('Older entries are removed when CurlStudio starts. 0 keeps everything.')}>
+        <NumberField value={s.activityRetentionDays} min={0} max={3650} onSave={(v) => setLimit('activityRetentionDays', Math.round(v))} />
+      </Row>
+      <Row label={t('Warn when larger than (MB)')}>
+        <NumberField value={s.activityWarnMb} min={1} max={s.activityMaxMb} onSave={(v) => setLimit('activityWarnMb', Math.round(v))} />
+      </Row>
+      <Row label={t('Maximum size (MB)')} help={t('Past this size the oldest entries are dropped automatically.')}>
+        <NumberField
+          value={s.activityMaxMb}
+          min={1}
+          max={1024}
+          onSave={(v) => {
+            const max = Math.round(v);
+            const cur = useWorkspace.getState().settings;
+            useWorkspace.getState().saveSettings({ ...cur, activityMaxMb: max, activityWarnMb: Math.min(cur.activityWarnMb, max) });
+            setTimeout(refreshActivityStats, 300);
+          }}
+        />
+      </Row>
+      <Row label={t('Entries loaded at startup')} help={t('Only the most recent entries are loaded, so startup stays fast.')}>
+        <NumberField value={s.activityLoadLimit} min={100} max={100000} onSave={(v) => setLimit('activityLoadLimit', Math.round(v))} />
+      </Row>
+      <Row label={t('Request history')}>
         <div className="flex items-center gap-2">
-          <span className="text-[12.5px] text-muted-foreground">{history} entries</span>
+          <span className="text-[12.5px] text-muted-foreground">{t('{n} entries', { n: history })}</span>
           <Button size="sm" variant="ghost" onClick={() => useWorkspace.getState().clearHistory()}>
-            <Trash2 className="size-3.5" /> Clear
+            <Trash2 className="size-3.5" /> {t('Clear')}
           </Button>
         </div>
       </Row>
@@ -286,7 +351,7 @@ export function SettingsDialog({ section: initial = 'general' }: { section?: Set
           style={{ width: 'min(920px, calc(100vw - 32px))', height: 'min(640px, calc(100vh - 48px))' }}
         >
           <nav className="flex w-52 shrink-0 flex-col gap-0.5 border-r border-border bg-surface p-2">
-            <Dialog.Title className="px-2 pt-1 pb-3 text-[16px] font-semibold">Settings</Dialog.Title>
+            <Dialog.Title className="px-2 pt-1 pb-3 text-[16px] font-semibold">{t('Settings')}</Dialog.Title>
             {SECTIONS.map((s) => (
               <button
                 key={s.id}
@@ -296,14 +361,14 @@ export function SettingsDialog({ section: initial = 'general' }: { section?: Set
                 className={cn('flex h-8 items-center gap-2 rounded-md px-2 text-[13px]', section === s.id ? 'bg-surface-hover font-medium text-foreground' : 'text-muted-foreground hover:text-foreground')}
               >
                 {s.icon}
-                {s.label}
+                {t(s.label)}
               </button>
             ))}
-            <div className="mt-auto px-2 text-[11px] text-muted-foreground">Changes are saved automatically.</div>
+            <div className="mt-auto px-2 text-[11px] text-muted-foreground">{t('Changes are saved automatically.')}</div>
           </nav>
           <div className="relative min-w-0 flex-1 overflow-auto px-6 py-5">
             <Dialog.Close asChild>
-              <IconButton label="Close" className="absolute top-3 right-3 size-7">
+              <IconButton label={t('Close')} className="absolute top-3 right-3 size-7">
                 <X className="size-5" />
               </IconButton>
             </Dialog.Close>
@@ -313,7 +378,7 @@ export function SettingsDialog({ section: initial = 'general' }: { section?: Set
             {section === 'data' && <DataPrefs />}
             {section === 'about' && (
               <>
-                <Title>About</Title>
+                <Title>{t('About')}</Title>
                 <About />
               </>
             )}

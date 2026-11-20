@@ -1,4 +1,5 @@
 import { logActivity } from '@/stores/activity';
+import { t } from '@/lib/i18n';
 import { api } from '@/lib/ipc';
 import { uid } from '@/lib/postman';
 import { useTabs } from '@/stores/tabs';
@@ -12,7 +13,7 @@ export async function startScenario(scenarioId: string): Promise<string | null> 
   const ws = useWorkspace.getState();
   const doc = ws.scenarios[scenarioId];
   if (!doc) {
-    toast('error', 'Scenario not found');
+    toast('error', t('Scenario not found'));
     return null;
   }
   const { scenario, problems } = toEngineScenario(doc);

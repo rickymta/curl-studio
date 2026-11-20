@@ -24,6 +24,10 @@ export const DEFAULT_SETTINGS: Settings = {
   terminalShell: 'auto',
   terminalCwd: '',
   fontSize: 13,
+  activityRetentionDays: 30,
+  activityWarnMb: 5,
+  activityMaxMb: 10,
+  activityLoadLimit: 5000,
 };
 
 interface WorkspaceDoc {
@@ -139,6 +143,7 @@ export const useWorkspace = create<State>((set, get) => {
         for (const { id, doc } of scenarios) sc[id] = { ...doc, id };
         set({
           loaded: true,
+          error: null,
           collections,
           order,
           environments,

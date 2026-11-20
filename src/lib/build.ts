@@ -1,4 +1,5 @@
 /** Postman request + scopes + inherited auth → backend RequestSpec. */
+import { t } from './i18n';
 import { authAttrs, makeUrl, urlRaw } from './postman';
 import type {
   KeyValue,
@@ -144,7 +145,7 @@ export function buildSpec(req: PmRequest, ctx: BuildContext): { spec: RequestSpe
           try {
             variables = JSON.parse(vtext);
           } catch {
-            warnings.push('GraphQL variables are not valid JSON; sent as null');
+            warnings.push(t('GraphQL variables are not valid JSON; sent as null'));
             variables = null;
           }
         }
@@ -165,7 +166,7 @@ export function buildSpec(req: PmRequest, ctx: BuildContext): { spec: RequestSpe
     switch (eff.type) {
       case 'basic':
         if (keep && /\{\{/.test(`${a.username}${a.password}`))
-          warnings.push('Basic auth uses per-VU variables; they are encoded with the values at start time');
+          warnings.push(t('Basic auth uses per-VU variables; they are encoded with the values at start time'));
         if (!hasHeader(headers, 'authorization'))
           headers.push({ key: 'Authorization', value: `Basic ${b64(`${a.username ?? ''}:${a.password ?? ''}`)}` });
         break;
@@ -183,7 +184,7 @@ export function buildSpec(req: PmRequest, ctx: BuildContext): { spec: RequestSpe
       case 'oauth2': {
         const token = a.accessToken ?? '';
         if (!token) {
-          warnings.push('OAuth 2.0: no access token yet (use "Get New Access Token")');
+          warnings.push(t('OAuth 2.0: no access token yet (use "Get New Access Token")'));
           break;
         }
         if (a.addTokenTo === 'queryParams') {
@@ -208,10 +209,10 @@ export function buildSpec(req: PmRequest, ctx: BuildContext): { spec: RequestSpe
         };
         break;
       case 'jwt':
-        warnings.push('JWT Bearer generation is not supported; set a Bearer token instead');
+        warnings.push(t('JWT Bearer generation is not supported; set a Bearer token instead'));
         break;
       default:
-        warnings.push(`Auth type "${eff.type}" is not supported and was ignored`);
+        warnings.push(t('Auth type "{type}" is not supported and was ignored', { type: String(eff.type) }));
     }
   }
 
@@ -222,7 +223,7 @@ export function buildSpec(req: PmRequest, ctx: BuildContext): { spec: RequestSpe
   if (!keep) {
     scan(url);
     headers.forEach((h) => scan(h.value));
-    if (unresolved.size) warnings.push(`Unresolved variables: ${[...unresolved].join(', ')}`);
+    if (unresolved.size) warnings.push(t('Unresolved variables: {names}', { names: [...unresolved].join(', ') }));
   }
 
   return {

@@ -19,6 +19,7 @@ import {
 import { useEffect, useState } from 'react';
 
 import { cn, ContextMenuWrap, Dropdown, Empty, IconButton, type MenuItem } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { findItem, isFolder, itemProtocol, methodColor, PROTOCOL_LABEL, uid } from '@/lib/postman';
 import type { PmItem } from '@/lib/types';
 import { useTabs } from '@/stores/tabs';
@@ -54,12 +55,12 @@ const NEW_KINDS: { kind: NewKind; label: string }[] = [
 function addMenu(collectionId: string, parentId: string | null): MenuItem[] {
   return [
     ...NEW_KINDS.map((k) => ({
-      label: `Add ${k.label}`,
+      label: t('Add {kind}', { kind: t(k.label) }),
       icon: <Plus className="size-3.5" />,
       onSelect: () => addItem(collectionId, parentId, makeItem(k.kind)),
     })),
     {
-      label: 'Add folder',
+      label: t('Add folder'),
       icon: <FolderPlus className="size-3.5" />,
       onSelect: () => addFolder(collectionId, parentId),
     },
@@ -112,7 +113,7 @@ function QuickAdd({
   return (
     <Dropdown items={items}>
       <IconButton
-        label="Add request or folder"
+        label={t('Add request or folder')}
         onClick={(e) => e.stopPropagation()}
         className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
       >
@@ -147,7 +148,7 @@ function ItemRow({
           ...addMenu(collectionId, item.id!),
           'sep' as const,
           {
-            label: 'Run folder',
+            label: t('Run folder'),
             icon: <Play className="size-3.5" />,
             onSelect: () =>
               useTabs
@@ -155,12 +156,12 @@ function ItemRow({
                 .open({ id: uid(), kind: 'runner', collectionId, folderId: item.id }),
           },
           {
-            label: 'Load test folder',
+            label: t('Load test folder'),
             icon: <Gauge className="size-3.5" />,
             onSelect: () => scenarioFromCollection(collectionId, item.id!),
           },
           {
-            label: 'Edit folder',
+            label: t('Edit folder'),
             icon: <Settings2 className="size-3.5" />,
             onSelect: () =>
               useTabs
@@ -169,14 +170,14 @@ function ItemRow({
           },
         ]
       : [
-          { label: 'Open', onSelect: () => useTabs.getState().openItem(collectionId, item.id!) },
+          { label: t('Open'), onSelect: () => useTabs.getState().openItem(collectionId, item.id!) },
           {
-            label: 'Copy as cURL',
+            label: t('Copy as cURL'),
             icon: <Terminal className="size-3.5" />,
             onSelect: () => copyAsCurl(collectionId, item),
           },
           {
-            label: 'Load test this request',
+            label: t('Load test this request'),
             icon: <Gauge className="size-3.5" />,
             onSelect: () => scenarioFromCollection(collectionId, null, [item.id!]),
             disabled: proto !== 'http' && proto !== 'graphql',
@@ -184,17 +185,17 @@ function ItemRow({
         ]),
     'sep',
     {
-      label: 'Rename',
+      label: t('Rename'),
       icon: <Edit3 className="size-3.5" />,
       onSelect: () => renameItem(collectionId, item.id!, item.name),
     },
     {
-      label: 'Duplicate',
+      label: t('Duplicate'),
       icon: <Copy className="size-3.5" />,
       onSelect: () => duplicateItem(collectionId, item.id!),
     },
     {
-      label: 'Delete',
+      label: t('Delete'),
       icon: <Trash2 className="size-3.5" />,
       danger: true,
       onSelect: () => deleteItem(collectionId, item.id!, item.name),
@@ -304,7 +305,7 @@ function ItemRow({
           )}
           <Dropdown items={menu()}>
             <IconButton
-              label="More"
+              label={t('More')}
               onClick={(e) => e.stopPropagation()}
               className="opacity-0 group-hover:opacity-100"
             >
@@ -344,49 +345,54 @@ function CollectionNode({ id, filter }: { id: string; filter: string }) {
     ...addMenu(id, null),
     'sep',
     {
-      label: 'Run collection',
+      label: t('Run collection'),
       icon: <Play className="size-3.5" />,
       onSelect: () => useTabs.getState().open({ id: uid(), kind: 'runner', collectionId: id }),
     },
     {
-      label: 'Load test collection',
+      label: t('Load test collection'),
       icon: <Gauge className="size-3.5" />,
       onSelect: () => scenarioFromCollection(id, null),
     },
     {
-      label: 'Edit (auth, scripts, variables)',
+      label: t('Edit (auth, scripts, variables)'),
       icon: <Settings2 className="size-3.5" />,
       onSelect: () => useTabs.getState().open({ id: uid(), kind: 'collection', collectionId: id }),
     },
     'sep',
     {
-      label: 'Export',
+      label: t('Export'),
       icon: <Download className="size-3.5" />,
       items: [
-        { label: 'Collection v2.1 (recommended)', onSelect: () => exportCollectionFile(id, '2.1') },
-        { label: 'Collection v2.0', onSelect: () => exportCollectionFile(id, '2.0') },
+        {
+          label: t('Collection v2.1 (recommended)'),
+          onSelect: () => exportCollectionFile(id, '2.1'),
+        },
+        { label: t('Collection v2.0'), onSelect: () => exportCollectionFile(id, '2.0') },
       ],
     },
     {
-      label: 'Rename',
+      label: t('Rename'),
       icon: <Edit3 className="size-3.5" />,
       onSelect: () =>
-        promptText('Rename collection', 'Name', c.info.name, (n) =>
+        promptText(t('Rename collection'), t('Name'), c.info.name, (n) =>
           useWorkspace.getState().updateCollection(id, (x) => void (x.info.name = n)),
         ),
     },
     {
-      label: 'Duplicate',
+      label: t('Duplicate'),
       icon: <Copy className="size-3.5" />,
       onSelect: () => duplicateCollection(id),
     },
     {
-      label: 'Delete',
+      label: t('Delete'),
       icon: <Trash2 className="size-3.5" />,
       danger: true,
       onSelect: () =>
-        confirmAction('Delete collection', `Delete "${c.info.name}" and all its requests?`, () =>
-          useWorkspace.getState().removeCollection(id),
+        confirmAction(
+          t('Delete collection'),
+          t('Delete "{name}" and all its requests?', { name: c.info.name }),
+          () => useWorkspace.getState().removeCollection(id),
         ),
     },
   ];
@@ -433,7 +439,7 @@ function CollectionNode({ id, filter }: { id: string; filter: string }) {
           <QuickAdd collectionId={id} parentId={null} onAdded={() => setOpen(true)} />
           <Dropdown items={menu()}>
             <IconButton
-              label="More"
+              label={t('More')}
               onClick={(e) => e.stopPropagation()}
               className="opacity-0 group-hover:opacity-100"
             >
@@ -446,13 +452,13 @@ function CollectionNode({ id, filter }: { id: string; filter: string }) {
         <div>
           {c.item.length === 0 && (
             <div className="py-1 pl-9 text-[12px] text-muted-foreground">
-              Empty.{' '}
+              {t('Empty.')}{' '}
               <button
                 type="button"
                 className="text-accent hover:underline"
                 onClick={() => addItem(id, null, makeItem('http'))}
               >
-                Add a request
+                {t('Add a request')}
               </button>
             </div>
           )}
@@ -553,38 +559,41 @@ export function CollectionsView() {
     .toLowerCase();
   if (!order.length) {
     return (
-      <Empty icon={<Layers className="size-8" />} title="No collections yet">
-        Create one, or import a Postman collection (v2.0 / v2.1), environment, data dump or a cURL
-        command.
+      <Empty icon={<Layers className="size-8" />} title={t('No collections yet')}>
+        {t(
+          'Create one, or import a Postman collection (v2.0 / v2.1), environment, data dump or a cURL command.',
+        )}
         <div className="mt-3 flex justify-center gap-2">
           <button
             type="button"
             className="text-accent hover:underline"
             onClick={() =>
-              promptText('New collection', 'Name', 'My Collection', (n) => createCollection(n))
+              promptText(t('New collection'), t('Name'), t('My Collection'), (n) =>
+                createCollection(n),
+              )
             }
           >
-            New collection
+            {t('New collection')}
           </button>
           <button
             type="button"
             className="text-accent hover:underline"
             onClick={() => useUi.getState().show({ kind: 'import' })}
           >
-            Import
+            {t('Import')}
           </button>
         </div>
       </Empty>
     );
   }
   return (
-    <div className="py-1" role="tree" aria-label="Collections" onKeyDown={onTreeKey}>
+    <div className="py-1" role="tree" aria-label={t('Collections')} onKeyDown={onTreeKey}>
       {order.map((id) => (
         <CollectionNode key={id} id={id} filter={filter} />
       ))}
       {filter && !order.some((id) => collectionMatches(id, filter)) && (
         <div className="px-3 py-6 text-center text-[12px] text-muted-foreground">
-          No requests or folders match &ldquo;{filter}&rdquo;.
+          {t('No requests or folders match “{filter}”.', { filter })}
         </div>
       )}
     </div>

@@ -1,5 +1,7 @@
 import { type ReactNode, useRef, useState } from 'react';
 
+import { t } from '@/lib/i18n';
+
 import { cn } from './ui';
 
 /** Two panes with a draggable divider. `id` persists the ratio. */
@@ -54,8 +56,8 @@ export function Split({
       <div
         role="separator"
         aria-orientation={vertical ? 'horizontal' : 'vertical'}
-        aria-label="Resize panes"
-        title="Drag to resize · double-click to reset"
+        aria-label={t('Resize panes')}
+        title={t('Drag to resize · double-click to reset')}
         onPointerDown={onDown}
         onDoubleClick={() => {
           setRatio(initial);

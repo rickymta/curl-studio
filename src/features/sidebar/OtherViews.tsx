@@ -2,6 +2,7 @@ import { CheckCircle2, Copy, Download, Edit3, Gauge, Globe2, History, MoreHorizo
 import { useEffect, useMemo, useState } from 'react';
 
 import { Badge, cn, ContextMenuWrap, Dropdown, Empty, IconButton, type MenuItem } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { formatDuration, formatMs, relTime, statusTone } from '@/lib/format';
 import { api } from '@/lib/ipc';
 import type { RunRecord } from '@/lib/load/types';
@@ -29,34 +30,34 @@ export function EnvironmentsView() {
         className="flex h-8 cursor-pointer items-center gap-2 px-3 hover:bg-surface-hover"
       >
         <Globe2 className="size-3.5 text-muted-foreground" />
-        <span className="flex-1">Globals</span>
+        <span className="flex-1">{t('Globals')}</span>
       </div>
       <div className="my-1 h-px bg-border" />
       {list.length === 0 && (
-        <Empty title="No environments">
-          Environments hold variables like <code>{'{{baseUrl}}'}</code>. Import a Postman environment or create one.
+        <Empty title={t('No environments')}>
+          {t('Environments hold variables like')} <code>{'{{baseUrl}}'}</code>. {t('Import a Postman environment or create one.')}
         </Empty>
       )}
       {list.map((e) => {
         const menu: MenuItem[] = [
-          { label: active === e.id ? 'Deactivate' : 'Set active', onSelect: () => useWorkspace.getState().setActiveEnv(active === e.id ? null : e.id) },
+          { label: active === e.id ? t('Deactivate') : t('Set active'), onSelect: () => useWorkspace.getState().setActiveEnv(active === e.id ? null : e.id) },
           {
-            label: 'Rename',
+            label: t('Rename'),
             icon: <Edit3 className="size-3.5" />,
-            onSelect: () => promptText('Rename environment', 'Name', e.name, (n) => useWorkspace.getState().updateEnvironment(e.id, (x) => void (x.name = n))),
+            onSelect: () => promptText(t('Rename environment'), t('Name'), e.name, (n) => useWorkspace.getState().updateEnvironment(e.id, (x) => void (x.name = n))),
           },
           {
-            label: 'Duplicate',
+            label: t('Duplicate'),
             icon: <Copy className="size-3.5" />,
-            onSelect: () => useWorkspace.getState().addEnvironment({ ...clone(e), id: uid(), name: `${e.name} Copy` }),
+            onSelect: () => useWorkspace.getState().addEnvironment({ ...clone(e), id: uid(), name: t('{name} Copy', { name: e.name }) }),
           },
-          { label: 'Export (Postman)', icon: <Download className="size-3.5" />, onSelect: () => exportEnvironmentFile(e.id) },
+          { label: t('Export (Postman)'), icon: <Download className="size-3.5" />, onSelect: () => exportEnvironmentFile(e.id) },
           'sep',
           {
-            label: 'Delete',
+            label: t('Delete'),
             icon: <Trash2 className="size-3.5" />,
             danger: true,
-            onSelect: () => confirmAction('Delete environment', `Delete "${e.name}"?`, () => useWorkspace.getState().removeEnvironment(e.id)),
+            onSelect: () => confirmAction(t('Delete environment'), t('Delete "{name}"?', { name: e.name }), () => useWorkspace.getState().removeEnvironment(e.id)),
           },
         ];
         return (
@@ -64,7 +65,7 @@ export function EnvironmentsView() {
             <div onClick={() => open(e.id)} className="group flex h-8 cursor-pointer items-center gap-2 px-3 hover:bg-surface-hover">
               <button
                 type="button"
-                title={active === e.id ? 'Active environment' : 'Set active'}
+                title={active === e.id ? t('Active environment') : t('Set active')}
                 onClick={(ev) => {
                   ev.stopPropagation();
                   useWorkspace.getState().setActiveEnv(active === e.id ? null : e.id);
@@ -74,7 +75,7 @@ export function EnvironmentsView() {
               <span className="min-w-0 flex-1 truncate">{e.name}</span>
               <span className="text-[11px] text-muted-foreground">{e.values.length}</span>
               <Dropdown items={menu}>
-                <IconButton label="More" onClick={(ev) => ev.stopPropagation()} className="opacity-0 group-hover:opacity-100">
+                <IconButton label={t('More')} onClick={(ev) => ev.stopPropagation()} className="opacity-0 group-hover:opacity-100">
                   <MoreHorizontal className="size-3.5" />
                 </IconButton>
               </Dropdown>
@@ -87,7 +88,7 @@ export function EnvironmentsView() {
 }
 
 export function newEnvironmentPrompt() {
-  promptText('New environment', 'Name', 'Development', (n) => {
+  promptText(t('New environment'), t('Name'), 'Development', (n) => {
     const id = useWorkspace.getState().addEnvironment(newEnvironment(n));
     useTabs.getState().open({ id: uid(), kind: 'environment', envId: id });
   });
@@ -107,21 +108,21 @@ export function HistoryView() {
     }
     return out;
   }, [history, filter]);
-  if (!history.length) return <Empty icon={<History className="size-8" />} title="No history yet">Requests you send appear here.</Empty>;
+  if (!history.length) return <Empty icon={<History className="size-8" />} title={t('No history yet')}>{t('Requests you send appear here.')}</Empty>;
   return (
     <div className="py-1">
       <div className="flex justify-end px-2 pb-1">
         <button
           type="button"
           className="text-[11px] text-muted-foreground hover:text-danger"
-          onClick={() => confirmAction('Clear history', 'Remove every history entry?', () => useWorkspace.getState().clearHistory(), true, 'Clear')}
+          onClick={() => confirmAction(t('Clear history'), t('Remove every history entry?'), () => useWorkspace.getState().clearHistory(), true, t('Clear'))}
         >
-          Clear all
+          {t('Clear all')}
         </button>
       </div>
       {groups.map((g) => (
         <div key={g.day}>
-          <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-muted-foreground">{g.day === new Date().toDateString() ? 'Today' : g.day}</div>
+          <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-muted-foreground">{g.day === new Date().toDateString() ? t('Today') : g.day}</div>
           {g.items.map((h) => (
             <div
               key={h.id}
@@ -156,11 +157,11 @@ export function LoadView() {
   return (
     <div className="flex flex-col py-1">
       <div className="flex items-center px-3 pt-1 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-        <span className="flex-1">Scenarios</span>
+        <span className="flex-1">{t('Scenarios')}</span>
         <IconButton
-          label="New scenario"
+          label={t('New scenario')}
           onClick={() => {
-            const sc = newScenario('New load test');
+            const sc = newScenario(t('New load test'));
             useWorkspace.getState().saveScenario(sc);
             openScenario(sc.id);
           }}
@@ -170,25 +171,25 @@ export function LoadView() {
       </div>
       {list.length === 0 && (
         <div className="px-3 pb-2 text-[12px] text-muted-foreground">
-          Right-click a collection, folder or request → <b>Load test</b>, or create an empty scenario.
+          {t('Right-click a collection, folder or request →')} <b>{t('Load test')}</b>{t(', or create an empty scenario.')}
         </div>
       )}
       {list.map((s) => (
         <ContextMenuWrap
           key={s.id}
           items={() => [
-            { label: 'Open', onSelect: () => openScenario(s.id) },
+            { label: t('Open'), onSelect: () => openScenario(s.id) },
             {
-              label: 'Duplicate',
+              label: t('Duplicate'),
               icon: <Copy className="size-3.5" />,
-              onSelect: () => useWorkspace.getState().saveScenario({ ...clone(s), id: uid(), name: `${s.name} Copy` }),
+              onSelect: () => useWorkspace.getState().saveScenario({ ...clone(s), id: uid(), name: t('{name} Copy', { name: s.name }) }),
             },
             'sep',
             {
-              label: 'Delete',
+              label: t('Delete'),
               icon: <Trash2 className="size-3.5" />,
               danger: true,
-              onSelect: () => confirmAction('Delete scenario', `Delete "${s.name}"? Its past runs are kept.`, () => useWorkspace.getState().removeScenario(s.id)),
+              onSelect: () => confirmAction(t('Delete scenario'), t('Delete "{name}"? Its past runs are kept.', { name: s.name }), () => useWorkspace.getState().removeScenario(s.id)),
             },
           ]}
         >
@@ -200,21 +201,21 @@ export function LoadView() {
         </ContextMenuWrap>
       ))}
       <div className="mt-3 flex items-center gap-1 px-3 pb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-        <span className="flex-1">Runs</span>
+        <span className="flex-1">{t('Runs')}</span>
         {picked.length >= 2 && (
           <button
             type="button"
             className="rounded bg-accent px-1.5 py-0.5 text-[10px] text-accent-foreground normal-case"
             onClick={() => useTabs.getState().open({ id: uid(), kind: 'compare', runIds: picked })}
           >
-            Compare {picked.length}
+            {t('Compare {n}', { n: picked.length })}
           </button>
         )}
         <button type="button" className="text-[10px] normal-case hover:text-foreground" onClick={() => useTabs.getState().open({ id: uid(), kind: 'loadRuns' })}>
-          All
+          {t('All')}
         </button>
       </div>
-      {runs.length === 0 && <div className="px-3 text-[12px] text-muted-foreground">No runs yet.</div>}
+      {runs.length === 0 && <div className="px-3 text-[12px] text-muted-foreground">{t('No runs yet.')}</div>}
       {runs.slice(0, 50).map((r) => (
         <RunRow
           key={r.id}
@@ -232,13 +233,13 @@ function RunRow({ run, picked, onPick }: { run: Omit<RunRecord, 'timeline'>; pic
   return (
     <ContextMenuWrap
       items={() => [
-        { label: 'Open report', onSelect: () => useTabs.getState().open({ id: uid(), kind: 'loadRun', runId: run.id }) },
+        { label: t('Open report'), onSelect: () => useTabs.getState().open({ id: uid(), kind: 'loadRun', runId: run.id }) },
         {
-          label: 'Delete run',
+          label: t('Delete run'),
           icon: <Trash2 className="size-3.5" />,
           danger: true,
           onSelect: () =>
-            confirmAction('Delete run', `Delete run ${run.id}?`, async () => {
+            confirmAction(t('Delete run'), t('Delete run {id}?', { id: run.id }), async () => {
               await api.remove('loadRuns', run.id);
               useRuns.getState().refresh();
             }),
@@ -252,7 +253,7 @@ function RunRow({ run, picked, onPick }: { run: Omit<RunRecord, 'timeline'>; pic
         <input
           type="checkbox"
           checked={picked}
-          title="Select to compare"
+          title={t('Select to compare')}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => onPick(e.target.checked)}
           className="size-3.5 accent-[var(--accent)]"

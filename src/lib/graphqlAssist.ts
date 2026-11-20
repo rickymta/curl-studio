@@ -4,6 +4,8 @@
 // It understands operations, aliases, arguments, fragments and inline fragments; it does not try
 // to be a full validator.
 
+import { t } from './i18n';
+
 export interface TypeRef {
   kind: string;
   name: string | null;
@@ -129,7 +131,7 @@ function walk(
       onField?.(tk, top ?? null);
       lastField = top?.fields?.find((f) => f.name === tk.text) ?? null;
       if (top?.fields && !lastField && tk.text !== '__typename') {
-        problems.push({ from: tk.from, to: tk.to, message: `Field “${tk.text}” does not exist on type ${top.name}.` });
+        problems.push({ from: tk.from, to: tk.to, message: t('Field “{field}” does not exist on type {type}.', { field: tk.text, type: top.name }) });
       }
       continue;
     }
@@ -146,22 +148,22 @@ function walk(
       if (pending !== undefined) next = pending;
       else if (!stack.length) next = schema.query ? (byName.get(schema.query) ?? null) : null;
       else if (lastField) {
-        const t = byName.get(leafName(lastField.type)) ?? null;
-        if (t && !t.fields) problems.push({ from: tk.from, to: tk.to, message: `${lastField.name} is a ${typeName(lastField.type)} and has no sub-fields.` });
-        next = t?.fields ? t : null;
+        const ty = byName.get(leafName(lastField.type)) ?? null;
+        if (ty && !ty.fields) problems.push({ from: tk.from, to: tk.to, message: t('{field} is a {type} and has no sub-fields.', { field: lastField.name, type: typeName(lastField.type) }) });
+        next = ty?.fields ? ty : null;
       } else next = null;
       stack.push(next);
       opens.push(tk);
       pending = undefined;
       lastField = null;
     } else if (tk.text === '}') {
-      if (!stack.length) problems.push({ from: tk.from, to: tk.to, message: 'Unexpected “}”.' });
+      if (!stack.length) problems.push({ from: tk.from, to: tk.to, message: t('Unexpected “}”.') });
       stack.pop();
       opens.pop();
       lastField = null;
     }
   }
-  if (stopAt === undefined) for (const o of opens) problems.push({ from: o.from, to: o.to, message: 'This “{” is never closed.' });
+  if (stopAt === undefined) for (const o of opens) problems.push({ from: o.from, to: o.to, message: t('This “{” is never closed.') });
   return { stack, problems };
 }
 

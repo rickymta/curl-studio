@@ -1,4 +1,5 @@
 /** cURL import (parse a command line into a Postman item) and export. */
+import { t } from './i18n';
 import { makeUrl, newRequest } from './postman';
 import type { PmItem, PmKV, RequestSpec } from './types';
 
@@ -71,8 +72,8 @@ export function isCurl(text: string): boolean {
 }
 
 export function parseCurl(cmd: string): PmItem {
-  const t = tokenize(cmd.trim());
-  if (!t.length || !/^curl(\.exe)?$/i.test(t[0]!)) throw new Error('Not a curl command');
+  const tok = tokenize(cmd.trim());
+  if (!tok.length || !/^curl(\.exe)?$/i.test(tok[0]!)) throw new Error(t('Not a curl command'));
   let method: string | null = null;
   let url = '';
   const headers: PmKV[] = [];
@@ -87,8 +88,8 @@ export function parseCurl(cmd: string): PmItem {
   let insecure = false;
   let follow = false;
   let compressed = false;
-  for (let i = 1; i < t.length; i++) {
-    let a = t[i]!;
+  for (let i = 1; i < tok.length; i++) {
+    let a = tok[i]!;
     let v: string | undefined;
     // --flag=value
     if (a.startsWith('--') && a.includes('=') && WITH_VALUE.has(a.slice(0, a.indexOf('=')))) {
@@ -99,7 +100,7 @@ export function parseCurl(cmd: string): PmItem {
       v = a.slice(2);
       a = a.slice(0, 2);
     } else if (WITH_VALUE.has(a)) {
-      v = t[++i] ?? '';
+      v = tok[++i] ?? '';
     }
     switch (a) {
       case '-X':
@@ -188,7 +189,7 @@ export function parseCurl(cmd: string): PmItem {
         }
     }
   }
-  if (!url) throw new Error('No URL found in the curl command');
+  if (!url) throw new Error(t('No URL found in the curl command'));
   if (get && (data.length || urlencode.length)) {
     const q = [...data, ...urlencode].join('&');
     url += (url.includes('?') ? '&' : '?') + q;

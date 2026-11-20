@@ -2,6 +2,7 @@
  * Postman collection v2.1 / environment helpers: import normalisation (v1, v2.0, v2.1),
  * tree operations, URL ⇄ query sync, auth attribute access.
  */
+import { t } from './i18n';
 import type {
   PmAuth,
   PmAuthAttr,
@@ -371,7 +372,7 @@ export type Detected =
 
 /** Recognise and normalise any Postman JSON export. */
 export function detectImport(json: unknown): Detected {
-  if (!json || typeof json !== 'object') throw new Error('Not a JSON object');
+  if (!json || typeof json !== 'object') throw new Error(t('Not a JSON object'));
   const o = json as Json;
   // Postman data dump (Settings → Data → Export data).
   if (Array.isArray(o.collections) || (Array.isArray(o.environments) && !('values' in o))) {
@@ -393,7 +394,7 @@ export function detectImport(json: unknown): Detected {
   // Postman API wrappers: { collection: {...} } / { environment: {...} }
   if (o.collection && typeof o.collection === 'object') return detectImport(o.collection);
   if (o.environment && typeof o.environment === 'object') return detectImport(o.environment);
-  throw new Error('Unrecognised file: expected a Postman collection, environment or data dump');
+  throw new Error(t('Unrecognised file: expected a Postman collection, environment or data dump'));
 }
 
 export function normaliseCollection(c: unknown): PmCollection {
@@ -467,12 +468,12 @@ export function exportCollectionV20(c: PmCollection): unknown {
   const fixAuth = (a: unknown) => {
     if (!a || typeof a !== 'object') return a;
     const auth = a as Json;
-    const t = String(auth.type);
-    const v = auth[t];
+    const type = String(auth.type);
+    const v = auth[type];
     if (Array.isArray(v)) {
       const obj: Json = {};
       for (const x of v as PmAuthAttr[]) obj[x.key] = x.value;
-      return { ...auth, [t]: obj };
+      return { ...auth, [type]: obj };
     }
     return auth;
   };

@@ -7,6 +7,7 @@ import { Button, Checkbox, cn, Dropdown, Field, Input, Tabs } from '@/components
 import { buildSpec, effectiveAuth } from '@/lib/build';
 import { isCurl, parseCurl } from '@/lib/curl';
 import { commitScopes, contextFor, execute } from '@/lib/execute';
+import { t } from '@/lib/i18n';
 import { api } from '@/lib/ipc';
 import { clone, makeUrl, METHODS, methodColor, parseQuery, pathVariables, scriptOf, setScript, uid, urlRaw, withQuery } from '@/lib/postman';
 import type { PmItem, PmKV } from '@/lib/types';
@@ -45,13 +46,13 @@ export async function sendTab(tab: RequestTabT) {
       : `${res.spec?.url ?? ''} → ${res.response?.status ?? ''}${tests.length ? ` · tests ${tests.length - failedTests}/${tests.length}` : ''}`,
   });
   if (res.error === 'cancelled') {
-    set(tab.id, { loading: false, error: 'Request cancelled', response: null });
+    set(tab.id, { loading: false, error: t('Request cancelled'), response: null });
     return;
   }
   set(tab.id, {
     loading: false,
     response: res.response,
-    error: res.skipped ? 'Request skipped by pm.execution.skipRequest()' : res.error,
+    error: res.skipped ? t('Request skipped by pm.execution.skipRequest()') : res.error,
     tests: res.tests,
     scriptErrors: res.scriptErrors,
     warnings: res.warnings,
@@ -76,9 +77,9 @@ function MethodPicker({ value, onChange }: { value: string; onChange: (m: string
         ...METHODS.map((m) => ({ label: m, onSelect: () => onChange(m) })),
         'sep' as const,
         {
-          label: 'Custom…',
+          label: t('Custom…'),
           onSelect: () => {
-            const m = window.prompt('Custom HTTP method', value);
+            const m = window.prompt(t('Custom HTTP method'), value);
             if (m?.trim()) onChange(m.trim().toUpperCase());
           },
         },
@@ -154,7 +155,7 @@ export function HttpEditor({ tab }: { tab: RequestTabT }) {
             value={raw}
             known={known}
             onChange={setUrl}
-            placeholder="Enter URL or paste a cURL command"
+            placeholder={t('Enter URL or paste a cURL command')}
             className="h-full"
             onKeyDown={(e) => {
               if (e.key === 'Enter') send();
@@ -169,7 +170,7 @@ export function HttpEditor({ tab }: { tab: RequestTabT }) {
                     d.request = item.request;
                     if (item.protocolProfileBehavior) d.protocolProfileBehavior = item.protocolProfileBehavior;
                   });
-                  toast('success', 'cURL imported into this request');
+                  toast('success', t('cURL imported into this request'));
                 } catch (err) {
                   toast('error', String(err));
                 }
@@ -179,11 +180,11 @@ export function HttpEditor({ tab }: { tab: RequestTabT }) {
         </div>
         {state?.loading ? (
           <Button variant="default" className="h-9 w-28" onClick={cancel}>
-            <Square className="size-3.5" /> Cancel
+            <Square className="size-3.5" /> {t('Cancel')}
           </Button>
         ) : (
           <Button variant="primary" className="h-9 w-28" onClick={send}>
-            <Send className="size-3.5" /> Send
+            <Send className="size-3.5" /> {t('Send')}
           </Button>
         )}
       </div>
@@ -191,13 +192,13 @@ export function HttpEditor({ tab }: { tab: RequestTabT }) {
         value={section}
         onChange={setSection}
         items={[
-          { id: 'params', label: 'Params', badge: queryRows.filter((q) => !q.disabled).length + pathVars.length || undefined },
+          { id: 'params', label: t('Params'), badge: queryRows.filter((q) => !q.disabled).length + pathVars.length || undefined },
           { id: 'auth', label: 'Authorization' },
-          { id: 'headers', label: 'Headers', badge: headerCount || undefined },
-          { id: 'body', label: 'Body', badge: req.body?.mode && req.body.mode !== 'none' ? '●' : undefined },
+          { id: 'headers', label: t('Headers'), badge: headerCount || undefined },
+          { id: 'body', label: t('Body'), badge: req.body?.mode && req.body.mode !== 'none' ? '●' : undefined },
           { id: 'pre', label: 'Pre-request Script', badge: pre.trim() ? '●' : undefined },
-          { id: 'tests', label: 'Tests', badge: tests.trim() ? '●' : undefined },
-          { id: 'settings', label: 'Settings' },
+          { id: 'tests', label: t('Tests'), badge: tests.trim() ? '●' : undefined },
+          { id: 'settings', label: t('Settings') },
         ]}
       />
       <div className="min-h-0 flex-1 overflow-auto">
@@ -218,7 +219,7 @@ export function HttpEditor({ tab }: { tab: RequestTabT }) {
             />
             {pathVars.length > 0 && (
               <>
-                <div className="px-3 pt-2 text-[11px] font-semibold text-muted-foreground uppercase">Path Variables</div>
+                <div className="px-3 pt-2 text-[11px] font-semibold text-muted-foreground uppercase">{t('Path Variables')}</div>
                 <KeyValueTable
                   rows={pathVars.map((n) => urlObj.variable?.find((v) => v.key === n) ?? { key: n, value: '' })}
                   known={known}
@@ -241,7 +242,7 @@ export function HttpEditor({ tab }: { tab: RequestTabT }) {
             auth={req.auth}
             known={known}
             scopes={ctx.scopes}
-            inheritedFrom={inherited.auth ? `${inherited.source} (${inherited.auth.type})` : 'parent (no auth)'}
+            inheritedFrom={inherited.auth ? `${inherited.source} (${inherited.auth.type})` : t('parent (no auth)')}
             onChange={(a) =>
               update((d) => {
                 d.request ??= {};
@@ -255,7 +256,7 @@ export function HttpEditor({ tab }: { tab: RequestTabT }) {
           <>
             <KeyValueTable rows={req.header ?? []} known={known} onChange={(rows) => update((d) => void ((d.request ??= {}).header = rows))} />
             <p className="px-3 text-[11.5px] text-muted-foreground">
-              Added automatically when absent: <code>User-Agent</code>, <code>Accept-Encoding</code>, <code>Content-Type</code> (from the body type) and auth headers.
+              {t('Added automatically when absent:')} <code>User-Agent</code>, <code>Accept-Encoding</code>, <code>Content-Type</code> {t('(from the body type) and auth headers.')}
             </p>
           </>
         )}
@@ -266,13 +267,13 @@ export function HttpEditor({ tab }: { tab: RequestTabT }) {
         {section === 'tests' && <ScriptEditor listen="test" value={tests} known={known} onChange={(v) => update((d) => void (d.event = setScript(d.event, 'test', v)))} />}
         {section === 'settings' && (
           <div className="grid max-w-xl gap-3 p-4">
-            <Checkbox checked={behavior.followRedirects !== false} onChange={(v) => setBehavior('followRedirects', v ? undefined : false)} label="Automatically follow redirects" />
-            <Field label="Maximum number of redirects">
+            <Checkbox checked={behavior.followRedirects !== false} onChange={(v) => setBehavior('followRedirects', v ? undefined : false)} label={t('Automatically follow redirects')} />
+            <Field label={t('Maximum number of redirects')}>
               <Input type="number" value={String(behavior.maxRedirects ?? '')} placeholder="10" onChange={(e) => setBehavior('maxRedirects', e.target.value ? Number(e.target.value) : undefined)} />
             </Field>
-            <Checkbox checked={behavior.strictSSL !== false} onChange={(v) => setBehavior('strictSSL', v ? undefined : false)} label="Enable SSL certificate verification" />
-            <Checkbox checked={!behavior.disableCookies} onChange={(v) => setBehavior('disableCookies', v ? undefined : true)} label="Use the cookie jar (send and store cookies)" />
-            <Field label="Request timeout (ms)" hint="Empty = global setting">
+            <Checkbox checked={behavior.strictSSL !== false} onChange={(v) => setBehavior('strictSSL', v ? undefined : false)} label={t('Enable SSL certificate verification')} />
+            <Checkbox checked={!behavior.disableCookies} onChange={(v) => setBehavior('disableCookies', v ? undefined : true)} label={t('Use the cookie jar (send and store cookies)')} />
+            <Field label={t('Request timeout (ms)')} hint={t('Empty = global setting')}>
               <Input type="number" value={String(behavior.requestTimeout ?? '')} placeholder="30000" onChange={(e) => setBehavior('requestTimeout', e.target.value ? Number(e.target.value) : undefined)} />
             </Field>
           </div>

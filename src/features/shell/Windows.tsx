@@ -3,6 +3,8 @@ import { Dialog } from 'radix-ui';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { cn, IconButton } from '@/components/ui';
+import { confirmAction } from '@/features/actions';
+import { t } from '@/lib/i18n';
 import { saveText } from '@/lib/native';
 import { type Activity, type ActivityCategory, useActivity } from '@/stores/activity';
 
@@ -47,7 +49,7 @@ function BigWindow({
             <div className="ml-auto flex items-center gap-3">
               {headerExtra}
               <Dialog.Close asChild>
-                <IconButton label="Close" className="size-7">
+                <IconButton label={t('Close')} className="size-7">
                   <X className="size-5" />
                 </IconButton>
               </Dialog.Close>
@@ -91,13 +93,16 @@ function FilterBox({ value, onChange, placeholder }: { value: string; onChange: 
   );
 }
 
+/** Key names (Ctrl, Enter, F5) stay as they are; descriptive caps ('Middle click') are translated. */
+const keyCap = (k: string) => (k.includes(' ') ? t(k) : k);
+
 export function ShortcutsWindow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [q, setQ] = useState('');
   const groups = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return SHORTCUTS.map((g) => ({
       ...g,
-      items: g.items.filter((i) => !needle || i.label.toLowerCase().includes(needle) || i.keys.some((k) => k.join('+').toLowerCase().includes(needle))),
+      items: g.items.filter((i) => !needle || i.label.toLowerCase().includes(needle) || t(i.label).toLowerCase().includes(needle) || i.keys.some((k) => k.join('+').toLowerCase().includes(needle) || k.map(keyCap).join('+').toLowerCase().includes(needle))),
     })).filter((g) => g.items.length > 0);
   }, [q]);
   return (
@@ -108,29 +113,29 @@ export function ShortcutsWindow({ open, onClose }: { open: boolean; onClose: () 
       height="min(680px, calc(100vh - 64px))"
       title={
         <span className="flex items-center gap-3">
-          Keyboard Shortcuts
+          {t('Keyboard Shortcuts')}
           <span className="flex gap-1">
             <Key>Ctrl</Key>
             <Key>/</Key>
           </span>
         </span>
       }
-      headerExtra={<FilterBox value={q} onChange={setQ} placeholder="Filter shortcuts" />}
+      headerExtra={<FilterBox value={q} onChange={setQ} placeholder={t('Filter shortcuts')} />}
     >
       <div className="min-h-0 flex-1 overflow-auto px-8 py-5">
-        {groups.length === 0 && <div className="py-10 text-center text-muted-foreground">No shortcut matches “{q}”.</div>}
+        {groups.length === 0 && <div className="py-10 text-center text-muted-foreground">{t('No shortcut matches “{q}”.', { q })}</div>}
         {groups.map((g) => (
           <section key={g.title} className="mb-6">
-            <h2 className="mb-2 border-b border-border pb-2 text-[17px] font-medium">{g.title}</h2>
+            <h2 className="mb-2 border-b border-border pb-2 text-[17px] font-medium">{t(g.title)}</h2>
             {g.items.map((i) => (
               <div key={i.label} className="flex min-h-9 items-center gap-4 py-1">
-                <span className="flex-1 text-[13.5px]">{i.label}</span>
+                <span className="flex-1 text-[13.5px]">{t(i.label)}</span>
                 <span className="flex w-80 flex-wrap items-center gap-1.5">
                   {i.keys.map((combo, n) => (
                     <span key={n} className="flex items-center gap-1">
-                      {n > 0 && <span className="px-1 text-[12px] text-muted-foreground">or</span>}
+                      {n > 0 && <span className="px-1 text-[12px] text-muted-foreground">{t('or')}</span>}
                       {combo.map((k) => (
-                        <Key key={k}>{k}</Key>
+                        <Key key={k}>{keyCap(k)}</Key>
                       ))}
                     </span>
                   ))}
@@ -188,14 +193,28 @@ export function ActivityWindow({ open, onClose }: { open: boolean; onClose: () =
       onClose={onClose}
       width="calc(100vw - 96px)"
       height="calc(100vh - 96px)"
-      title="Activity Logs"
+      title={t('Activity Logs')}
       headerExtra={
         <>
-          <FilterBox value={q} onChange={setQ} placeholder="Filter logs" />
-          <IconButton label="Save as text file" className="size-7" onClick={() => saveText(`curlstudio-activity-${new Date().toISOString().slice(0, 10)}.log`, asText(shown), [{ name: 'Log', extensions: ['log', 'txt'] }])}>
+          <FilterBox value={q} onChange={setQ} placeholder={t('Filter logs')} />
+          <IconButton label={t('Save as text file')} className="size-7" onClick={() => saveText(`curlstudio-activity-${new Date().toISOString().slice(0, 10)}.log`, asText(shown), [{ name: 'Log', extensions: ['log', 'txt'] }])}>
             <Download className="size-4" />
           </IconButton>
-          <IconButton label="Clear log" className="size-7" onClick={clear}>
+          <IconButton
+            label={t('Clear log')}
+            className="size-7"
+            disabled={!items.length}
+            onClick={() =>
+              confirmAction(
+                t('Clear Activity Logs'),
+                t('Delete every entry of the Activity Logs (also from activity.jsonl)? This cannot be undone.'),
+                clear,
+                true,
+                t('Delete'),
+                { kind: 'activity' },
+              )
+            }
+          >
             <Trash2 className="size-4" />
           </IconButton>
         </>
@@ -212,18 +231,18 @@ export function ActivityWindow({ open, onClose }: { open: boolean; onClose: () =
               className={cn('flex h-full items-center gap-2 px-4 text-[13px]', tab === c.id ? 'bg-surface-hover font-medium text-foreground' : 'text-muted-foreground hover:text-foreground')}
             >
               {c.icon}
-              {c.label}
+              {t(c.label)}
               <span className="text-[11px] text-muted-foreground tabular-nums">{n}</span>
             </button>
           );
         })}
         <label className="ml-auto flex items-center gap-2 px-4 text-[12.5px] text-muted-foreground">
           <input type="checkbox" checked={failedOnly} onChange={(e) => setFailedOnly(e.target.checked)} className="size-3.5 accent-[var(--accent)]" />
-          Failures only
+          {t('Failures only')}
         </label>
       </div>
       <div ref={box} className="selectable min-h-0 flex-1 overflow-auto px-4 py-3 font-mono text-[12px] leading-5">
-        {shown.length === 0 && <div className="py-10 text-center font-sans text-muted-foreground">{items.length ? 'No entries match.' : 'Nothing logged yet.'}</div>}
+        {shown.length === 0 && <div className="py-10 text-center font-sans text-muted-foreground">{items.length ? t('No entries match.') : t('Nothing logged yet.')}</div>}
         {shown.map((i, n) => (
           <div key={i.id}>
             {(n === 0 || day(shown[n - 1]!.at) !== day(i.at)) && <div className="mt-2 mb-1 font-sans text-[11px] font-semibold text-muted-foreground uppercase">{day(i.at)}</div>}
@@ -232,7 +251,7 @@ export function ActivityWindow({ open, onClose }: { open: boolean; onClose: () =
               <span className={cn('min-w-0 flex-1 whitespace-pre-wrap', i.status === 'failed' && 'text-danger')}>
                 {i.status === 'failed' ? '✕ ' : i.status === 'finished' ? '✓ ' : i.status === 'started' ? '… ' : '· '}
                 {i.label}
-                {i.status === 'started' && ': started'}
+                {i.status === 'started' && t(': started')}
                 {i.detail && <span className={cn('block break-all', i.status === 'failed' ? 'text-danger/80' : 'text-muted-foreground')}>{i.detail}</span>}
               </span>
               {i.ms !== undefined && <span className="shrink-0 text-accent tabular-nums">{i.ms >= 1000 ? `${(i.ms / 1000).toFixed(2)}s` : `${i.ms}ms`}</span>}
@@ -242,11 +261,13 @@ export function ActivityWindow({ open, onClose }: { open: boolean; onClose: () =
       </div>
       <div className="flex h-7 shrink-0 items-center gap-3 border-t border-border bg-surface px-4 text-[11.5px] text-muted-foreground">
         <span>
-          {shown.length} of {items.length} entries
+          {t('{shown} of {total} entries', { shown: shown.length, total: items.length })}
         </span>
         {stats && (
           <span className="min-w-0 truncate" title={stats.path}>
-            · saved to activity.jsonl ({(stats.bytes / 1024).toFixed(0)} KB of {stats.maxBytes / 1024 / 1024} MB, kept {stats.retentionDays} days)
+            {stats.retentionDays
+              ? t('· saved to activity.jsonl ({used} KB of {max} MB, kept {days} days)', { used: (stats.bytes / 1024).toFixed(0), max: stats.maxBytes / 1024 / 1024, days: stats.retentionDays })
+              : t('· saved to activity.jsonl ({used} KB of {max} MB, kept forever)', { used: (stats.bytes / 1024).toFixed(0), max: stats.maxBytes / 1024 / 1024 })}
           </span>
         )}
       </div>

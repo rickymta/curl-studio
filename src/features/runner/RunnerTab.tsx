@@ -5,6 +5,7 @@ import { ChartCard, HBars, SERIES } from '@/components/charts';
 import { Badge, Button, Checkbox, cn, Empty, Field, Input, Select, Spinner } from '@/components/ui';
 import { commitScopes, contextFor, execute } from '@/lib/execute';
 import { formatMs, formatPct, slug } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { pickTextFiles, saveText } from '@/lib/native';
 import { clone, findItem, flattenRequests, itemProtocol } from '@/lib/postman';
 import type { PmItem, TestResult } from '@/lib/types';
@@ -75,7 +76,7 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
   const [order, setOrder] = useState<'run' | 'slow'>('run');
   const [show, setShow] = useState<'all' | 'failed' | 'non2xx'>('all');
   const stop = useRef(false);
-  if (!c) return <Empty title="Collection not found" />;
+  if (!c) return <Empty title={t('Collection not found')} />;
   const title = folderId ? (findItem(c.item, folderId)?.item.name ?? c.info.name) : c.info.name;
 
   const run = async () => {
@@ -158,26 +159,26 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
   return (
     <div className="flex h-full min-h-0">
       <div className="w-[380px] shrink-0 overflow-auto border-r border-border p-4">
-        <h2 className="text-[15px] font-semibold">Run “{title}”</h2>
-        <p className="mb-3 text-[12px] text-muted-foreground">Collection Runner: sequential requests with scripts, tests, data files and iterations (like Postman / Newman).</p>
+        <h2 className="text-[15px] font-semibold">{t('Run “{title}”', { title })}</h2>
+        <p className="mb-3 text-[12px] text-muted-foreground">{t('Collection Runner: sequential requests with scripts, tests, data files and iterations (like Postman / Newman).')}</p>
         <div className="space-y-3">
-          <Field label="Environment">
-            <Select value={envId} onChange={setEnvId} options={[{ value: '', label: 'No environment' }, ...Object.values(envs).map((e) => ({ value: e.id, label: e.name }))]} />
+          <Field label={t('Environment')}>
+            <Select value={envId} onChange={setEnvId} options={[{ value: '', label: t('No environment') }, ...Object.values(envs).map((e) => ({ value: e.id, label: e.name }))]} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Iterations">
+            <Field label={t('Iterations')}>
               <Input type="number" min={1} value={iterations} onChange={(e) => setIterations(Math.max(1, Number(e.target.value) || 1))} />
             </Field>
-            <Field label="Delay (ms)">
+            <Field label={t('Delay (ms)')}>
               <Input type="number" min={0} value={delay} onChange={(e) => setDelay(Math.max(0, Number(e.target.value) || 0))} />
             </Field>
           </div>
-          <Field label="Data file" hint={data ? `${data.rows.length} rows → one iteration per row` : 'CSV or JSON, one iteration per row'}>
+          <Field label={t('Data file')} hint={data ? t('{n} rows → one iteration per row', { n: data.rows.length }) : t('CSV or JSON, one iteration per row')}>
             <div className="flex gap-2">
               <Button
                 size="sm"
                 onClick={async () => {
-                  const f = await pickTextFiles({ title: 'Data file', filters: [{ name: 'CSV / JSON', extensions: ['csv', 'json'] }] });
+                  const f = await pickTextFiles({ title: t('Data file'), filters: [{ name: 'CSV / JSON', extensions: ['csv', 'json'] }] });
                   if (!f[0]) return;
                   try {
                     setData({ name: f[0].name, rows: parseDataFile(f[0].name, f[0].text) });
@@ -186,7 +187,7 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
                   }
                 }}
               >
-                <FileUp className="size-3.5" /> Select file
+                <FileUp className="size-3.5" /> {t('Select file')}
               </Button>
               {data && (
                 <Button size="sm" variant="ghost" onClick={() => setData(null)}>
@@ -195,13 +196,13 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
               )}
             </div>
           </Field>
-          <Checkbox checked={persist} onChange={setPersist} label="Keep variable values set by scripts" />
-          <Checkbox checked={stopOnFail} onChange={setStopOnFail} label="Stop run on first failure" />
+          <Checkbox checked={persist} onChange={setPersist} label={t('Keep variable values set by scripts')} />
+          <Checkbox checked={stopOnFail} onChange={setStopOnFail} label={t('Stop run on first failure')} />
           <div>
             <div className="mb-1 flex items-center text-[12px] font-medium text-muted-foreground">
-              <span className="flex-1">Requests ({selected.size}/{all.length})</span>
+              <span className="flex-1">{t('Requests ({selected}/{total})', { selected: selected.size, total: all.length })}</span>
               <button type="button" className="text-accent" onClick={() => setSelected(selected.size === all.length ? new Set() : new Set(all.map((x) => x.item.id!)))}>
-                {selected.size === all.length ? 'Deselect all' : 'Select all'}
+                {selected.size === all.length ? t('Deselect all') : t('Select all')}
               </button>
             </div>
             <div className="max-h-72 overflow-auto rounded-md border border-border">
@@ -227,11 +228,11 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
           </div>
           {running ? (
             <Button className="w-full" onClick={() => (stop.current = true)}>
-              <Square className="size-4" /> Stop
+              <Square className="size-4" /> {t('Stop')}
             </Button>
           ) : (
             <Button variant="primary" className="w-full" onClick={run} disabled={!selected.size}>
-              <Play className="size-4" /> Run {title}
+              <Play className="size-4" /> {t('Run {title}', { title })}
             </Button>
           )}
         </div>
@@ -240,19 +241,19 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
         <div className="flex shrink-0 items-center gap-4 border-b border-border px-4 py-2">
           {running && <Spinner className="text-accent" />}
           <span>
-            Requests <b>{results.length}</b>
+            {t('Requests')} <b>{results.length}</b>
           </span>
           <span>
-            Tests <b className="text-success">{passed}</b> / <b className={passed < tests.length ? 'text-danger' : ''}>{tests.length}</b> {tests.length > 0 && `(${formatPct(passed / tests.length, 0)})`}
+            {t('Tests')} <b className="text-success">{passed}</b> / <b className={passed < tests.length ? 'text-danger' : ''}>{tests.length}</b> {tests.length > 0 && `(${formatPct(passed / tests.length, 0)})`}
           </span>
-          <span title="Network errors or failed tests">
-            Failed <b className={failedReq ? 'text-danger' : ''}>{failedReq}</b>
+          <span title={t('Network errors or failed tests')}>
+            {t('Failed')} <b className={failedReq ? 'text-danger' : ''}>{failedReq}</b>
           </span>
-          <span title="Responses outside 2xx (4xx, 5xx, redirects not followed)">
+          <span title={t('Responses outside 2xx (4xx, 5xx, redirects not followed)')}>
             Non-2xx <b className={non2xx ? 'text-warning' : ''}>{non2xx}</b>
           </span>
           <span>
-            Avg <b>{formatMs(avg)}</b>
+            {t('Avg')} <b>{formatMs(avg)}</b>
           </span>
           <div className="flex-1" />
           <Button size="sm" disabled={!results.length} onClick={() => saveText(`${slug(title)}-run.html`, htmlReport(title, results), [{ name: 'HTML', extensions: ['html'] }])}>
@@ -266,16 +267,16 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
           </Button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-3">
-          {!results.length && !running && <Empty title="No results yet">Configure the run on the left and press Run.</Empty>}
+          {!results.length && !running && <Empty title={t('No results yet')}>{t('Configure the run on the left and press Run.')}</Empty>}
           {perReq.length > 1 && (
             <ChartCard
-              title="Average response time by request"
-              subtitle={scale === 'log' ? 'log scale' : undefined}
+              title={t('Average response time by request')}
+              subtitle={scale === 'log' ? t('log scale') : undefined}
               className="mb-3"
               legend={
                 <span className="flex items-center gap-2 text-[11.5px]">
-                  <Select value={order} onChange={(v) => setOrder(v as 'run' | 'slow')} options={[{ value: 'run', label: 'Run order' }, { value: 'slow', label: 'Slowest first' }]} className="h-6 w-32 text-[11.5px]" />
-                  <Select value={scale} onChange={(v) => setScale(v as 'linear' | 'log')} options={[{ value: 'linear', label: 'Linear' }, { value: 'log', label: 'Log scale' }]} className="h-6 w-28 text-[11.5px]" />
+                  <Select value={order} onChange={(v) => setOrder(v as 'run' | 'slow')} options={[{ value: 'run', label: t('Run order') }, { value: 'slow', label: t('Slowest first') }]} className="h-6 w-32 text-[11.5px]" />
+                  <Select value={scale} onChange={(v) => setScale(v as 'linear' | 'log')} options={[{ value: 'linear', label: t('Linear') }, { value: 'log', label: t('Log scale') }]} className="h-6 w-28 text-[11.5px]" />
                 </span>
               }
             >
@@ -283,11 +284,11 @@ export function RunnerTab({ collectionId, folderId }: { collectionId: string; fo
             </ChartCard>
           )}
           {results.length > 0 && (
-            <div className="mb-2 flex items-center gap-1 text-[12px]" role="group" aria-label="Filter results">
+            <div className="mb-2 flex items-center gap-1 text-[12px]" role="group" aria-label={t('Filter results')}>
               {(
                 [
-                  ['all', `All (${results.length})`],
-                  ['failed', `Failed (${failedReq})`],
+                  ['all', t('All ({n})', { n: results.length })],
+                  ['failed', t('Failed ({n})', { n: failedReq })],
                   ['non2xx', `Non-2xx (${non2xx})`],
                 ] as const
               ).map(([v, l]) => (

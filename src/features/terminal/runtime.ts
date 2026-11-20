@@ -6,6 +6,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { type ITheme, Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 
+import { t } from '@/lib/i18n';
 import { api } from '@/lib/ipc';
 import { logActivity } from '@/stores/activity';
 import { errText, toast } from '@/stores/ui';
@@ -139,7 +140,7 @@ async function pump(id: number) {
     if (l.stopped) return;
     if (exited) {
       l.stopped = true;
-      l.term.write('\r\n\x1b[2m[Process exited]\x1b[0m\r\n');
+      l.term.write(`\r\n\x1b[2m${t('[Process exited]')}\x1b[0m\r\n`);
       useTerminal.getState().markExited(id);
       return;
     }
@@ -167,7 +168,7 @@ export async function openSession(): Promise<number | null> {
   try {
     opened = await api.terminalOpen({ cwd: terminalCwd || null, cols: 80, rows: 24, shell: terminalShell || 'auto' });
   } catch (e) {
-    toast('error', `Could not start the terminal: ${errText(e)}`);
+    toast('error', t('Could not start the terminal: {error}', { error: errText(e) }));
     return null;
   }
   const { id } = opened;

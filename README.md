@@ -109,7 +109,12 @@ lets you verify the downloads.
 - **Status bar**: environment, running load tests, console, terminal, Activity Logs, shortcuts,
   zoom, help and version.
 - **Activity Logs** (Ctrl+Shift+L): requests, runs, load tests, errors and app events, saved in
-  `activity.jsonl` (30 days, at most 10 MB), filterable and exportable.
+  `activity.jsonl`, filterable and exportable. Retention (30 days), warning size and maximum size
+  (10 MB) are set in Settings → Data & Logs.
+- **Notifications** stack above the status bar; hover to read them all and pause their timers.
+- **English and Vietnamese** interface: chosen on first launch, changed in Settings → Appearance.
+  Exported reports, generated code and the Activity Logs file stay in English.
+- One window per user: launching CurlStudio again focuses the one that is running.
 - **In-app terminal** (Ctrl+`): real PTY sessions (PowerShell, PowerShell 7, cmd, Git Bash or your
   `$SHELL`), using your Windows Terminal font.
 - **Settings**: request defaults, theme (dark / light / system) with brightness per theme, zoom,
@@ -127,6 +132,7 @@ lets you verify the downloads.
 | Search the sidebar / toggle sidebar | Ctrl+K / Ctrl+\              |
 | Terminal / console                  | Ctrl+` / Ctrl+Alt+C          |
 | Activity Logs / all shortcuts       | Ctrl+Shift+L / Ctrl+/        |
+| Reload the workspace from disk      | F5 / Ctrl+R                  |
 | Zoom in / out / reset               | Ctrl+= / Ctrl+- / Ctrl+0     |
 | Settings / help                     | Ctrl+, / F1                  |
 

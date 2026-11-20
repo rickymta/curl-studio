@@ -4,6 +4,19 @@
  */
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
+import { t as translate } from '@/lib/i18n';
+
+/**
+ * Chart texts follow the app language on screen; exported reports (`staticWidth` set) stay English.
+ * (`t` is taken by loop variables in this file.)
+ */
+function tr(exported: boolean, text: string, vars?: Record<string, string | number>): string {
+  if (!exported) return translate(text, vars);
+  let out = text;
+  for (const [k, v] of Object.entries(vars ?? {})) out = out.split(`{${k}}`).join(String(v));
+  return out;
+}
+
 export const SERIES = Array.from({ length: 8 }, (_, i) => `var(--series-${i + 1})`);
 
 export interface Series {
@@ -200,7 +213,7 @@ export function LineChart({
         ))}
         {offScale.map((r, i) => (
           <text key={`off-${r.label}`} x={w - PAD.r - 2} y={PAD.t + 10 + i * 13} textAnchor="end" style={{ fill: r.color ?? 'var(--danger)' }}>
-            ▲ {r.label} (above the chart)
+            ▲ {r.label} {tr(!!staticWidth, '(above the chart)')}
           </text>
         ))}
         {onScale.map((r) => (
@@ -264,7 +277,7 @@ export function Histogram({
   color?: string;
 }) {
   const [ref, w] = useWidth(staticWidth);
-  if (!bins.length) return <div className="p-6 text-center text-[12px] text-muted-foreground">No data</div>;
+  if (!bins.length) return <div className="p-6 text-center text-[12px] text-muted-foreground">{tr(!!staticWidth, 'No data')}</div>;
   const h = height;
   const iw = w - PAD.l - PAD.r;
   const ih = h - PAD.t - PAD.b;
@@ -293,7 +306,7 @@ export function Histogram({
             <g key={i}>
               <rect x={PAD.l + i * bw + 1} y={sy(b.count)} width={Math.max(1, bw - 2)} height={bh} rx={Math.min(3, bw / 3)} fill={color} opacity={i === bins.length - 1 && bins.length > 40 ? 0.55 : 0.9} />
               <rect className="hover-col" x={PAD.l + i * bw} y={PAD.t} width={bw} height={ih} fill="transparent">
-                <title>{`${b.from.toFixed(1)}–${b.to.toFixed(1)} ms: ${b.count} requests`}</title>
+                <title>{`${b.from.toFixed(1)}–${b.to.toFixed(1)} ms: ${tr(!!staticWidth, '{n} requests', { n: b.count })}`}</title>
               </rect>
             </g>
           );
@@ -382,7 +395,7 @@ export function Heatmap({
                 const c = m.v[k] ?? 0;
                 return (
                   <rect key={i} x={padL + i * cw} y={y} width={Math.max(1, cw - (cw > 4 ? 1 : 0))} height={Math.max(1, ch - 1)} fill={c ? seqColor(Math.log1p(c) / Math.log1p(max)) : 'var(--surface-muted)'} rx={cw > 6 ? 1.5 : 0}>
-                    <title>{`${fmtClock(m.t)} · ${label(k)}: ${c} requests`}</title>
+                    <title>{`${fmtClock(m.t)} · ${label(k)}: ${tr(!!staticWidth, '{n} requests', { n: c })}`}</title>
                   </rect>
                 );
               })}
@@ -398,9 +411,9 @@ export function Heatmap({
           ))}
       </svg>
       <div className="mt-1 flex items-center justify-end gap-2 text-[10.5px] text-muted-foreground">
-        fewer
+        {tr(!!staticWidth, 'fewer')}
         <span className="inline-block h-2 w-24 rounded" style={{ background: `linear-gradient(90deg, ${seqColor(0.05)}, ${seqColor(1)})` }} />
-        more requests
+        {tr(!!staticWidth, 'more requests')}
       </div>
     </div>
   );

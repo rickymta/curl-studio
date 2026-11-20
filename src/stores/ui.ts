@@ -24,13 +24,32 @@ export type Dialog =
       danger?: boolean;
       confirmLabel?: string;
       onConfirm: () => void;
+      /** Dialog to go back to afterwards (the window the question was asked from). */
+      returnTo?: Dialog;
     }
   | null;
 
-interface Toast {
-  id: number;
-  kind: 'info' | 'success' | 'error';
+export type ToastKind = 'info' | 'success' | 'warning' | 'error';
+
+export interface ToastAction {
+  label: string;
+  /** Runs on click; the toast closes afterwards. */
+  run: () => void;
+}
+
+export interface ToastSpec {
+  kind: ToastKind;
   text: string;
+  /** Smaller second block, e.g. the error message. */
+  detail?: string;
+  /** Buttons under the text. */
+  actions?: ToastAction[];
+}
+
+export interface Toast extends ToastSpec {
+  id: number;
+  /** Auto-hide delay in ms; the toast's progress bar runs for this long (paused on hover). */
+  duration: number;
 }
 
 interface State {
@@ -47,14 +66,15 @@ interface State {
   setSidebar: (v: SidebarView) => void;
   setSidebarWidth: (w: number) => void;
   show: (d: Dialog) => void;
-  toast: (kind: Toast['kind'], text: string) => void;
+  toast: (kind: ToastKind, text: string, detail?: string) => void;
+  notify: (spec: ToastSpec) => void;
   dismiss: (id: number) => void;
   setFilter: (f: string) => void;
 }
 
 let n = 0;
 
-export const useUi = create<State>((set) => ({
+export const useUi = create<State>((set, get) => ({
   sidebar: 'collections',
   sidebarWidth: Number(localStorage.getItem('curlstudio.sidebarWidth')) || 300,
   dialog: null,
@@ -95,17 +115,33 @@ export const useUi = create<State>((set) => ({
     set({ sidebarWidth: w });
   },
   show: (dialog) => set({ dialog }),
-  toast: (kind, text) => {
-    // Every error shown to the user is also kept in the Activity Logs.
-    if (kind === 'error') logActivity({ cat: 'app', label: text, status: 'failed' });
-    else if (kind === 'success') logActivity({ cat: 'app', label: text, status: 'info' });
+  toast: (kind, text, detail) => get().notify({ kind, text, detail }),
+  notify: ({ kind, text, detail, actions }) => {
+    // Everything the user was told (except plain hints) is also kept in the Activity Logs.
+    if (kind !== 'info')
+      logActivity({
+        cat: 'app',
+        label: text,
+        detail,
+        status: kind === 'error' ? 'failed' : 'info',
+      });
     const id = ++n;
-    set((s) => ({ toasts: [...s.toasts, { id, kind, text }] }));
-    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), kind === 'error' ? 7000 : 3500);
+    // Errors, warnings and toasts with buttons stay longer; long details get more reading time.
+    const base =
+      kind === 'error' || kind === 'warning' || actions?.length
+        ? 9000
+        : kind === 'success'
+          ? 4000
+          : 5000;
+    const duration = base + Math.min(6000, (detail?.length ?? 0) * 30);
+    set((s) => ({ toasts: [...s.toasts.slice(-4), { id, kind, text, detail, actions, duration }] }));
   },
   dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   setFilter: (filter) => set({ filter }),
 }));
 
-export const toast = (kind: 'info' | 'success' | 'error', text: string) => useUi.getState().toast(kind, text);
+export const toast = (kind: ToastKind, text: string, detail?: string) =>
+  useUi.getState().toast(kind, text, detail);
+/** A toast with action buttons. */
+export const notify = (spec: ToastSpec) => useUi.getState().notify(spec);
 export const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
