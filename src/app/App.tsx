@@ -59,6 +59,7 @@ import { createCollection, useWorkspace } from '@/stores/workspace';
 import { useRuns } from '@/features/load/runs';
 import { applyBrightness, applyZoom, setZoom, zoomBy } from '@/features/shell/appearance';
 import { StatusBar } from '@/features/shell/StatusBar';
+import { Toasts } from '@/features/shell/Toasts';
 import { TerminalPanel } from '@/features/terminal/TerminalPanel';
 import { toggleTerminal } from '@/features/terminal/runtime';
 import { loadActivity, logActivity } from '@/stores/activity';
@@ -537,30 +538,6 @@ function ConsolePanel() {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function Toasts() {
-  const toasts = useUi((s) => s.toasts);
-  return (
-    <div className="fixed right-4 bottom-4 z-[60] flex flex-col gap-2">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          onClick={() => useUi.getState().dismiss(t.id)}
-          className={cn(
-            'max-w-md cursor-pointer rounded-md border px-3 py-2 text-[12.5px] shadow-lg',
-            t.kind === 'error'
-              ? 'border-danger bg-danger-soft text-danger'
-              : t.kind === 'success'
-                ? 'border-success bg-success-soft text-success'
-                : 'border-border bg-surface',
-          )}
-        >
-          {t.text}
-        </div>
-      ))}
     </div>
   );
 }
