@@ -2,6 +2,12 @@
 
 Các thay đổi đáng chú ý của CurlStudio. File này do `pnpm release` cập nhật.
 
+## v0.1.1 - 2026-11-20
+
+Thay đổi từ v0.1.0.
+
+- fix(vars): green for variables with a value, red for missing or empty ones (5a88336)
+
 ## v0.1.0 - 2026-11-19
 
 Phát hành đầu tiên: API client theo tinh thần Postman cộng với studio load test (ý tưởng từ Postman, JMeter và k6).
