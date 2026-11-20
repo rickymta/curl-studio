@@ -143,6 +143,7 @@ export const useWorkspace = create<State>((set, get) => {
         for (const { id, doc } of scenarios) sc[id] = { ...doc, id };
         set({
           loaded: true,
+          error: null,
           collections,
           order,
           environments,

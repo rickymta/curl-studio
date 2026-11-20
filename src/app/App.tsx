@@ -5,6 +5,7 @@ import {
   Globe2,
   History,
   Layers,
+  Moon,
   Check,
   ChevronDown,
   PanelLeftClose,
@@ -15,6 +16,7 @@ import {
   Search,
   Settings as SettingsIcon,
   SquareTerminal,
+  Sun,
   Trash2,
   X,
 } from 'lucide-react';
@@ -54,7 +56,7 @@ import { VarCollection } from '@/features/request/varScope';
 import { itemProtocol, methodColor, PROTOCOL_LABEL, uid } from '@/lib/postman';
 import { useConsole } from '@/stores/console';
 import { syncTabsWithWorkspace, type Tab, useTabs } from '@/stores/tabs';
-import { notify, type SidebarView, useUi } from '@/stores/ui';
+import { notify, type SidebarView, toast, useUi } from '@/stores/ui';
 import { createCollection, useWorkspace } from '@/stores/workspace';
 import { useRuns } from '@/features/load/runs';
 import { applyBrightness, applyZoom, setZoom, zoomBy } from '@/features/shell/appearance';
@@ -574,6 +576,33 @@ function EnvPicker() {
 
 let startLogged = false;
 
+/** Re-read collections, environments, settings and load runs from the workspace folder. */
+async function reloadWorkspace() {
+  await Promise.all([useWorkspace.getState().load(), useRuns.getState().refresh()]);
+  const error = useWorkspace.getState().error;
+  if (error) toast('error', 'Could not reload the workspace', error);
+  else toast('success', 'Workspace reloaded from disk');
+}
+
+/** Dark / light from the title bar (Settings → Appearance also offers "System"). */
+function ThemeToggle() {
+  const theme = useWorkspace((s) => s.settings.theme);
+  const dark =
+    theme === 'dark' ||
+    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  return (
+    <IconButton
+      label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+      onClick={() => {
+        const ws = useWorkspace.getState();
+        ws.saveSettings({ ...ws.settings, theme: dark ? 'light' : 'dark' });
+      }}
+    >
+      {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </IconButton>
+  );
+}
+
 export function App() {
   const loaded = useWorkspace((s) => s.loaded);
   const error = useWorkspace((s) => s.error);
@@ -637,6 +666,13 @@ export function App() {
       if (e.key === 'F1') {
         e.preventDefault();
         ui.show({ kind: 'help' });
+        return;
+      }
+      // F5 / Ctrl+R would reload the webview and drop every unsaved tab: re-read the workspace
+      // folder instead (files changed outside the app, e.g. by Git or Postman).
+      if (e.key === 'F5' || (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'r')) {
+        e.preventDefault();
+        if (!e.repeat) void reloadWorkspace();
         return;
       }
       if (!mod) return;
@@ -759,6 +795,7 @@ export function App() {
         <IconButton label="Console (Ctrl+Alt+C)" onClick={() => useConsole.getState().toggle()}>
           <SquareTerminal className="size-4" />
         </IconButton>
+        <ThemeToggle />
         <IconButton
           label="Settings (Ctrl+,)"
           onClick={() => useUi.getState().show({ kind: 'settings' })}
