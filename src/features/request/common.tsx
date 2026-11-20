@@ -12,7 +12,7 @@ import { useWorkspace } from '@/stores/workspace';
 
 export type RequestTabT = Extract<Tab, { kind: 'request' }>;
 
-/** Names of every variable visible to this request (for highlighting). */
+/** Names of every variable that resolves to a non-empty value for this request (for highlighting: green, the rest red). */
 export function useKnownVars(collectionId: string | null): Set<string> {
   const collections = useWorkspace((s) => s.collections);
   const environments = useWorkspace((s) => s.environments);
@@ -20,7 +20,11 @@ export function useKnownVars(collectionId: string | null): Set<string> {
   const activeEnv = useWorkspace((s) => s.activeEnv);
   return useMemo(() => {
     const ctx = contextFor(collectionId, null);
-    return new Set(Object.keys(flatten(ctx.scopes)));
+    return new Set(
+      Object.entries(flatten(ctx.scopes))
+        .filter(([, v]) => v !== '')
+        .map(([k]) => k),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collectionId, collections, environments, globals, activeEnv]);
 }

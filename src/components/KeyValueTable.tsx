@@ -8,7 +8,7 @@ import type { PmFormParam, PmKV } from '@/lib/types';
 import { cn, IconButton } from './ui';
 import { type VarHover, VarPopover } from './VarPopover';
 
-/** Single-line input that highlights `{{variables}}` (green = known, red = unknown). */
+/** Single-line input that highlights `{{variables}}` (green = has a value, red = undefined or empty). */
 export function VarInput({
   value,
   onChange,
@@ -92,7 +92,7 @@ export function VarInput({
             const name = p.slice(2, -2).trim();
             const ok = !known || name.startsWith('$') || known.has(name);
             return (
-              <span key={i} data-var={name} className={ok ? 'text-accent' : 'rounded-sm text-danger outline-1 -outline-offset-1 outline-danger/60'}>
+              <span key={i} data-var={name} className={ok ? 'text-success' :'rounded-sm text-danger outline-1 -outline-offset-1 outline-danger/60'}>
                 {p}
               </span>
             );

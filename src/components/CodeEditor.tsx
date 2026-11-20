@@ -66,7 +66,7 @@ const theme = EditorView.theme({
   '.cm-panels': { backgroundColor: 'var(--surface)', color: 'var(--foreground)' },
   '.cm-search input, .cm-search button': { fontSize: '12px' },
   '.cm-foldGutter span': { padding: '0 2px' },
-  '.cm-var': { color: 'var(--accent)', fontWeight: '600' },
+  '.cm-var': { color: 'var(--success)', fontWeight: '600' },
   // Syntax highlighting (e.g. a JSON string) renders inside the mark; let the variable colour win.
   '.cm-var *, .cm-var-unknown *': { color: 'inherit' },
   '.cm-var-unknown': { color: 'var(--danger)', fontWeight: '600', outline: '1px solid color-mix(in oklch, var(--danger) 60%, transparent)', borderRadius: '2px' },
