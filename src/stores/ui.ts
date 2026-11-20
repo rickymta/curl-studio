@@ -16,7 +16,18 @@ export type Dialog =
   | { kind: 'help'; tab?: 'contact' | 'about' }
   | { kind: 'saveAs'; tabId: string; then?: () => void }
   | { kind: 'unsaved'; tabIds: string[] }
-  | { kind: 'prompt'; title: string; label: string; value: string; onSubmit: (v: string) => void }
+  | {
+      kind: 'prompt';
+      title: string;
+      label: string;
+      value: string;
+      onSubmit: (v: string) => void;
+      onCancel?: () => void;
+      hint?: string;
+      placeholder?: string;
+      /** Accept an empty value (default: OK is disabled until something is typed). */
+      allowEmpty?: boolean;
+    }
   | {
       kind: 'confirm';
       title: string;
@@ -144,4 +155,14 @@ export const toast = (kind: ToastKind, text: string, detail?: string) =>
   useUi.getState().toast(kind, text, detail);
 /** A toast with action buttons. */
 export const notify = (spec: ToastSpec) => useUi.getState().notify(spec);
+
+/**
+ * In-app replacement for `window.prompt`: resolves with the trimmed text, or null when the user
+ * cancels (Cancel, Esc, ×). Native webview prompts don't follow the app theme and block the UI.
+ */
+export function askText(title: string, label: string, value = '', opts: { hint?: string; placeholder?: string; allowEmpty?: boolean } = {}): Promise<string | null> {
+  return new Promise((resolve) => {
+    useUi.getState().show({ kind: 'prompt', title, label, value, ...opts, onSubmit: (v) => resolve(v), onCancel: () => resolve(null) });
+  });
+}
 export const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));

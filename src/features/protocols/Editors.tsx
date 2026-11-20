@@ -14,7 +14,7 @@ import { makeUrl, urlRaw } from '@/lib/postman';
 import type { GrpcMethod, GrpcSource, PmItem, ProtocolExt } from '@/lib/types';
 import { lookup, resolve } from '@/lib/vars';
 import { useTabs } from '@/stores/tabs';
-import { errText, toast } from '@/stores/ui';
+import { askText, errText, toast } from '@/stores/ui';
 
 import { type RequestTabT, RequestHeader, useKnownVars } from '../request/common';
 import { MessageLog } from './MessageLog';
@@ -134,8 +134,8 @@ export function WsEditor({ tab }: { tab: RequestTabT }) {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => {
-                  const name = window.prompt(t('Message name'), t('Message {n}', { n: saved.length + 1 }));
+                onClick={async () => {
+                  const name = await askText(t('Save message'), t('Name'), t('Message {n}', { n: saved.length + 1 }));
                   if (name) update((d) => void ((d['x-curlstudio'] ??= { kind: 'ws' }).ws = { ...(d['x-curlstudio']!.ws ?? {}), messages: [...saved, { name, data: message }] }));
                 }}
               >

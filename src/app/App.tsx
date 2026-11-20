@@ -34,6 +34,7 @@ import {
   Select,
   Spinner,
 } from '@/components/ui';
+import { TextContextMenu } from '@/components/TextContextMenu';
 import { CompareTab, RunsListTab } from '@/features/load/CompareTab';
 import { RunTab } from '@/features/load/RunTab';
 import { ScenarioEditor } from '@/features/load/ScenarioEditor';
@@ -855,6 +856,8 @@ export function App() {
       </div>
       <StatusBar />
       <Dialogs />
+      {/* The webview's own right-click menu replaced by one in the app's style (from GitStudio). */}
+      <TextContextMenu />
       <Toasts />
     </div>
   );

@@ -78,7 +78,7 @@ export function EnvironmentEditor({ envId }: { envId: string }) {
                 return (
                   <tr key={i} className={cn('group', row.enabled === false && 'opacity-50')}>
                     <td className={cn(cell, 'text-center')}>
-                      {!ghost && <input type="checkbox" checked={row.enabled !== false} onChange={(e) => set({ enabled: e.target.checked })} className="accent-[var(--accent)]" />}
+                      {!ghost && <input type="checkbox" checked={row.enabled !== false} onChange={(e) => set({ enabled: e.target.checked })} aria-label={t('Enable {name}', { name: row.key || t('variable') })} className="accent-[var(--accent)]" />}
                     </td>
                     <td className={cell}>
                       <input value={row.key} placeholder={ghost ? t('Add new variable') : ''} onChange={(e) => set({ key: e.target.value })} className="h-full w-full bg-transparent px-2 font-mono outline-none" />

@@ -306,7 +306,8 @@ export function KeyValueTable({
                         type="checkbox"
                         checked={!row.disabled}
                         onChange={(e) => update(i, { disabled: !e.target.checked })}
-                        className="size-3.5 accent-[var(--accent)]"
+                        aria-label={t('Enable {name}', { name: row.key || t('row') })}
+                        className="size-3.5"
                       />
                     )}
                   </td>

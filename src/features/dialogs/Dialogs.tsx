@@ -288,23 +288,28 @@ function SaveAsDialog({ tabId, then }: { tabId: string; then?: () => void }) {
 function PromptDialog({ d }: { d: Extract<NonNullable<ReturnType<typeof useUi.getState>['dialog']>, { kind: 'prompt' }> }) {
   const [value, setValue] = useState(d.value);
   const close = () => useUi.getState().show(null);
+  const cancel = () => {
+    close();
+    d.onCancel?.();
+  };
+  const empty = !value.trim() && !d.allowEmpty;
   return (
-    <Modal open onClose={close} title={d.title}>
+    <Modal open onClose={cancel} title={d.title}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (!value.trim()) return;
+          if (empty) return;
           close();
           d.onSubmit(value.trim());
         }}
         className="space-y-3"
       >
-        <Field label={d.label}>
-          <Input value={value} onChange={(e) => setValue(e.target.value)} autoFocus onFocus={(e) => e.target.select()} />
+        <Field label={d.label} hint={d.hint}>
+          <Input value={value} placeholder={d.placeholder} onChange={(e) => setValue(e.target.value)} autoFocus onFocus={(e) => e.target.select()} />
         </Field>
         <div className="flex justify-end gap-2">
-          <Button onClick={close}>{t('Cancel')}</Button>
-          <Button variant="primary" type="submit">
+          <Button onClick={cancel}>{t('Cancel')}</Button>
+          <Button variant="primary" type="submit" disabled={empty}>
             {t('OK')}
           </Button>
         </div>

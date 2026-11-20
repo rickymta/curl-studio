@@ -13,7 +13,7 @@ import { clone, makeUrl, METHODS, methodColor, parseQuery, pathVariables, script
 import type { PmItem, PmKV } from '@/lib/types';
 import { useTabs } from '@/stores/tabs';
 import { logActivity } from '@/stores/activity';
-import { toast } from '@/stores/ui';
+import { askText, toast } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 
 import { AuthEditor } from './AuthEditor';
@@ -78,9 +78,9 @@ function MethodPicker({ value, onChange }: { value: string; onChange: (m: string
         'sep' as const,
         {
           label: t('Custom…'),
-          onSelect: () => {
-            const m = window.prompt(t('Custom HTTP method'), value);
-            if (m?.trim()) onChange(m.trim().toUpperCase());
+          onSelect: async () => {
+            const m = await askText(t('Custom HTTP method'), t('Method'), value, { hint: t('Any token, e.g. REPORT, MKCOL, SEARCH. Sent in upper case.'), placeholder: 'REPORT' });
+            if (m) onChange(m.toUpperCase());
           },
         },
       ]}
