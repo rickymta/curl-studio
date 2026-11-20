@@ -331,7 +331,9 @@ mod tests {
             warn_bytes: one * 5,
             ..Limits::default()
         };
-        let entries: Vec<Value> = (0..25).map(|_| json!({ "at": now, "label": "x" })).collect();
+        let entries: Vec<Value> = (0..25)
+            .map(|_| json!({ "at": now, "label": "x" }))
+            .collect();
         let st = append_in(&path, &entries, limits).unwrap();
         assert!(st.bytes <= limits.max_bytes);
         let loaded = load_in(&path, limits).unwrap();

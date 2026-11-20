@@ -56,10 +56,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            if let Some(window) = app.get_webview_window("main") {
-                if fit_to_screen(&window).is_err() {
-                    let _ = window.show();
-                }
+            if let Some(window) = app.get_webview_window("main")
+                && fit_to_screen(&window).is_err()
+            {
+                let _ = window.show();
             }
             Ok(())
         })
