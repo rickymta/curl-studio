@@ -3,6 +3,7 @@ import { Dialog } from 'radix-ui';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { cn, IconButton } from '@/components/ui';
+import { confirmAction } from '@/features/actions';
 import { saveText } from '@/lib/native';
 import { type Activity, type ActivityCategory, useActivity } from '@/stores/activity';
 
@@ -195,7 +196,21 @@ export function ActivityWindow({ open, onClose }: { open: boolean; onClose: () =
           <IconButton label="Save as text file" className="size-7" onClick={() => saveText(`curlstudio-activity-${new Date().toISOString().slice(0, 10)}.log`, asText(shown), [{ name: 'Log', extensions: ['log', 'txt'] }])}>
             <Download className="size-4" />
           </IconButton>
-          <IconButton label="Clear log" className="size-7" onClick={clear}>
+          <IconButton
+            label="Clear log"
+            className="size-7"
+            disabled={!items.length}
+            onClick={() =>
+              confirmAction(
+                'Clear Activity Logs',
+                'Delete every entry of the Activity Logs (also from activity.jsonl)? This cannot be undone.',
+                clear,
+                true,
+                'Delete',
+                { kind: 'activity' },
+              )
+            }
+          >
             <Trash2 className="size-4" />
           </IconButton>
         </>
@@ -246,7 +261,7 @@ export function ActivityWindow({ open, onClose }: { open: boolean; onClose: () =
         </span>
         {stats && (
           <span className="min-w-0 truncate" title={stats.path}>
-            · saved to activity.jsonl ({(stats.bytes / 1024).toFixed(0)} KB of {stats.maxBytes / 1024 / 1024} MB, kept {stats.retentionDays} days)
+            · saved to activity.jsonl ({(stats.bytes / 1024).toFixed(0)} KB of {stats.maxBytes / 1024 / 1024} MB, {stats.retentionDays ? `kept ${stats.retentionDays} days` : 'kept forever'})
           </span>
         )}
       </div>

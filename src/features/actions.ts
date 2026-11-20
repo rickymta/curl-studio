@@ -20,7 +20,7 @@ import { slug } from '@/lib/format';
 import { isCurl, parseCurl } from '@/lib/curl';
 import type { PmCollection, PmItem, ProtocolExt } from '@/lib/types';
 import { useTabs } from '@/stores/tabs';
-import { errText, toast, useUi } from '@/stores/ui';
+import { type Dialog, errText, toast, useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 
 export type NewKind = 'http' | 'graphql' | 'ws' | 'sse' | 'grpc' | 'mqtt';
@@ -71,8 +71,9 @@ export function promptText(title: string, label: string, value: string, onSubmit
   useUi.getState().show({ kind: 'prompt', title, label, value, onSubmit });
 }
 
-export function confirmAction(title: string, message: string, onConfirm: () => void, danger = true, confirmLabel = 'Delete') {
-  useUi.getState().show({ kind: 'confirm', title, message, onConfirm, danger, confirmLabel });
+/** Ask before a destructive action. `returnTo` reopens the window the question came from. */
+export function confirmAction(title: string, message: string, onConfirm: () => void, danger = true, confirmLabel = 'Delete', returnTo?: Dialog) {
+  useUi.getState().show({ kind: 'confirm', title, message, onConfirm, danger, confirmLabel, returnTo });
 }
 
 export function addFolder(collectionId: string, parentId: string | null) {

@@ -54,7 +54,7 @@ import { VarCollection } from '@/features/request/varScope';
 import { itemProtocol, methodColor, PROTOCOL_LABEL, uid } from '@/lib/postman';
 import { useConsole } from '@/stores/console';
 import { syncTabsWithWorkspace, type Tab, useTabs } from '@/stores/tabs';
-import { type SidebarView, useUi } from '@/stores/ui';
+import { notify, type SidebarView, useUi } from '@/stores/ui';
 import { createCollection, useWorkspace } from '@/stores/workspace';
 import { useRuns } from '@/features/load/runs';
 import { applyBrightness, applyZoom, setZoom, zoomBy } from '@/features/shell/appearance';
@@ -589,9 +589,24 @@ export function App() {
     // Once per page load (StrictMode runs effects twice in development).
     if (!startLogged) {
       startLogged = true;
-      void loadActivity().then(() =>
-        logActivity({ cat: 'app', label: `CurlStudio ${__APP_VERSION__} started`, status: 'info' }),
-      );
+      void loadActivity().then((stats) => {
+        logActivity({ cat: 'app', label: `CurlStudio ${__APP_VERSION__} started`, status: 'info' });
+        if (stats && stats.level !== 'ok')
+          notify({
+            kind: stats.level === 'full' ? 'error' : 'warning',
+            text: `Activity Logs file is ${(stats.bytes / 1024 / 1024).toFixed(1)} MB`,
+            detail:
+              stats.level === 'full'
+                ? 'It reached its maximum size: the oldest entries are being dropped.'
+                : 'Lower the retention period or clear it in Settings → Data & Logs.',
+            actions: [
+              {
+                label: 'Open settings',
+                run: () => useUi.getState().show({ kind: 'settings', section: 'data' }),
+              },
+            ],
+          });
+      });
     }
     return useWorkspace.subscribe(() => syncTabsWithWorkspace());
   }, []);

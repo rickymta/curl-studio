@@ -3,12 +3,12 @@ import { Dialog } from 'radix-ui';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { Button, Checkbox, cn, IconButton, Input, Select } from '@/components/ui';
-import { exportEverything } from '@/features/actions';
+import { confirmAction, exportEverything } from '@/features/actions';
 import { systemFont } from '@/features/terminal/font';
 import { api } from '@/lib/ipc';
 import { pickFiles, revealPath } from '@/lib/native';
 import type { Settings } from '@/lib/types';
-import { useActivity } from '@/stores/activity';
+import { refreshActivityStats, useActivity } from '@/stores/activity';
 import { type SettingsSection, useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 
@@ -223,14 +223,24 @@ function TerminalPrefs() {
   );
 }
 
+const fmtSize = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`);
+
 function DataPrefs() {
+  const [s, set] = useSettings();
   const [dataDir, setDataDir] = useState('');
   const stats = useActivity((s) => s.stats);
   const entries = useActivity((s) => s.items.length);
-  const history = useWorkspace((s) => s.history.length);
+  const history = useWorkspace((x) => x.history.length);
+  const pct = stats ? Math.min(100, (stats.bytes / stats.maxBytes) * 100) : 0;
   useEffect(() => {
     api.info().then((i) => setDataDir(i.dataDir)).catch(() => undefined);
+    refreshActivityStats();
   }, []);
+  // The backend reads the limits from settings.json: re-read the stats once it is written.
+  const setLimit = (k: 'activityRetentionDays' | 'activityWarnMb' | 'activityLoadLimit', v: number) => {
+    set(k, v);
+    setTimeout(refreshActivityStats, 300);
+  };
   return (
     <>
       <Title>Data & Logs</Title>
@@ -249,16 +259,61 @@ function DataPrefs() {
           Export all (Postman dump)
         </Button>
       </Row>
-      <Row label="Activity Logs" help={stats ? `activity.jsonl · ${(stats.bytes / 1024).toFixed(0)} KB · kept ${stats.retentionDays} days, at most ${stats.maxBytes / 1024 / 1024} MB` : 'activity.jsonl in the workspace folder'}>
+      <Row label="Activity Logs" help="Requests, load tests and app events are appended to activity.jsonl in the workspace folder and read back at startup.">
         <div className="flex items-center gap-2">
-          <span className="text-[12.5px] text-muted-foreground">{entries} entries</span>
+          <span className="text-[12.5px] text-muted-foreground">
+            {stats ? `${fmtSize(stats.bytes)} of ${fmtSize(stats.maxBytes)}` : '…'} · {entries} entries loaded
+          </span>
           <Button size="sm" onClick={() => useUi.getState().show({ kind: 'activity' })}>
             <ListChecks className="size-3.5" /> Open
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => useActivity.getState().clear()}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() =>
+              confirmAction('Clear Activity Logs', 'Delete every entry of the Activity Logs (also from activity.jsonl)? This cannot be undone.', () => useActivity.getState().clear(), true, 'Delete', {
+                kind: 'settings',
+                section: 'data',
+              })
+            }
+          >
             <Trash2 className="size-3.5" /> Clear
           </Button>
         </div>
+        {stats && (
+          <div className="mt-2 flex items-center gap-3">
+            <div className="h-1.5 w-64 overflow-hidden rounded-full bg-surface-muted" role="progressbar" aria-label="Activity Logs file size" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}>
+              <div className={cn('h-full', stats.level === 'full' ? 'bg-danger' : stats.level === 'warn' ? 'bg-warning' : 'bg-success')} style={{ width: `${pct}%` }} />
+            </div>
+            {stats.level !== 'ok' && (
+              <span className={cn('text-[12px]', stats.level === 'full' ? 'text-danger' : 'text-warning')}>
+                {stats.level === 'full' ? 'At the size limit: the oldest entries are being dropped' : 'Over the warning size'}
+              </span>
+            )}
+          </div>
+        )}
+      </Row>
+      <Row label="Delete logs after (days)" help="Older entries are removed when CurlStudio starts. 0 keeps everything.">
+        <NumberField value={s.activityRetentionDays} min={0} max={3650} onSave={(v) => setLimit('activityRetentionDays', Math.round(v))} />
+      </Row>
+      <Row label="Warn when larger than (MB)">
+        <NumberField value={s.activityWarnMb} min={1} max={s.activityMaxMb} onSave={(v) => setLimit('activityWarnMb', Math.round(v))} />
+      </Row>
+      <Row label="Maximum size (MB)" help="Past this size the oldest entries are dropped automatically.">
+        <NumberField
+          value={s.activityMaxMb}
+          min={1}
+          max={1024}
+          onSave={(v) => {
+            const max = Math.round(v);
+            const cur = useWorkspace.getState().settings;
+            useWorkspace.getState().saveSettings({ ...cur, activityMaxMb: max, activityWarnMb: Math.min(cur.activityWarnMb, max) });
+            setTimeout(refreshActivityStats, 300);
+          }}
+        />
+      </Row>
+      <Row label="Entries loaded at startup" help="Only the most recent entries are loaded, so startup stays fast.">
+        <NumberField value={s.activityLoadLimit} min={100} max={100000} onSave={(v) => setLimit('activityLoadLimit', Math.round(v))} />
       </Row>
       <Row label="Request history">
         <div className="flex items-center gap-2">

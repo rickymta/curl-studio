@@ -62,7 +62,8 @@ type DocName = 'globals' | 'settings' | 'history' | 'cookies' | 'workspace';
 export const api = {
   info: () => call<{ version: string; dataDir: string; os: string; arch: string; home: string | null }>('app.info'),
 
-  activityLoad: () => call<{ entries: unknown[]; stats: T.ActivityStats }>('activity.load'),
+  activityLoad: () => call<{ entries: unknown[]; pruned: number; stats: T.ActivityStats }>('activity.load'),
+  activityStats: () => call<T.ActivityStats>('activity.stats'),
   activityAppend: (entries: unknown[]) => call<T.ActivityStats>('activity.append', { entries }),
   activityClear: () => call<T.ActivityStats>('activity.clear'),
 

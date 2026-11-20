@@ -390,16 +390,17 @@ export function Dialogs() {
       return <UnsavedDialog key={d.tabIds[0]} tabIds={d.tabIds} />;
     case 'prompt':
       return <PromptDialog key={d.title + d.value} d={d} />;
-    case 'confirm':
+    case 'confirm': {
+      const back = () => useUi.getState().show(d.returnTo ?? null);
       return (
-        <Modal open onClose={close} title={d.title} description={d.message}>
+        <Modal open onClose={back} title={d.title} description={d.message}>
           <div className="flex justify-end gap-2">
-            <Button onClick={close}>Cancel</Button>
+            <Button onClick={back}>Cancel</Button>
             <Button
               variant={d.danger ? 'danger' : 'primary'}
               autoFocus
               onClick={() => {
-                close();
+                back();
                 d.onConfirm();
               }}
             >
@@ -408,6 +409,7 @@ export function Dialogs() {
           </div>
         </Modal>
       );
+    }
     default:
       return null;
   }

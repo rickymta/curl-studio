@@ -24,6 +24,8 @@ export type Dialog =
       danger?: boolean;
       confirmLabel?: string;
       onConfirm: () => void;
+      /** Dialog to go back to afterwards (the window the question was asked from). */
+      returnTo?: Dialog;
     }
   | null;
 

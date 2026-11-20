@@ -27,6 +27,10 @@ const settings: Settings = {
   terminalShell: 'auto',
   terminalCwd: '',
   fontSize: 13,
+  activityRetentionDays: 30,
+  activityWarnMb: 5,
+  activityMaxMb: 10,
+  activityLoadLimit: 5000,
 };
 
 const v21: PmCollection = {

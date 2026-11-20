@@ -62,6 +62,7 @@ pub async fn dispatch(cmd: &str, args: Value) -> Result<Value> {
             let entries: Vec<Value> = arg(a, "entries")?;
             serde_json::to_value(activity::append(&entries)?)?
         }
+        "activity.stats" => serde_json::to_value(activity::current_stats()?)?,
         "activity.clear" => serde_json::to_value(activity::clear()?)?,
         // ---- help / support ----
         "support.systemInfo" => serde_json::to_value(support::system_info())?,

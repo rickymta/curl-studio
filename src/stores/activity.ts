@@ -81,8 +81,19 @@ export const useActivity = create<ActivityStore>((set, get) => ({
   },
 }));
 
-/** Read activity.jsonl at startup (older than 30 days is dropped there). */
-export async function loadActivity() {
+/** Re-read the file's size and limits (after they change in Settings). */
+export function refreshActivityStats() {
+  api
+    .activityStats()
+    .then((stats) => useActivity.setState({ stats }))
+    .catch(() => undefined);
+}
+
+/**
+ * Read activity.jsonl at startup (entries past the retention period are deleted there). Returns
+ * the file's stats so the caller can warn when it is getting large.
+ */
+export async function loadActivity(): Promise<ActivityStats | null> {
   try {
     const loaded = await api.activityLoad();
     const items = (loaded.entries as Omit<Activity, 'id'>[])
@@ -92,8 +103,10 @@ export async function loadActivity() {
       items: [...items, ...s.items].slice(-MAX),
       stats: loaded.stats,
     }));
+    return loaded.stats;
   } catch {
     /* no backend yet: start empty */
+    return null;
   }
 }
 

@@ -307,6 +307,14 @@ export interface Settings {
   /** Folder new terminals start in (empty = home folder). */
   terminalCwd: string;
   fontSize: number;
+  /** Activity Logs: entries older than this many days are deleted at startup; 0 keeps all. */
+  activityRetentionDays: number;
+  /** Size of activity.jsonl (MB) above which the app warns. */
+  activityWarnMb: number;
+  /** Size (MB) activity.jsonl never exceeds: the oldest entries are dropped. */
+  activityMaxMb: number;
+  /** Most recent Activity Logs entries loaded at startup. */
+  activityLoadLimit: number;
 }
 
 export interface HistoryEntry {
@@ -338,6 +346,9 @@ export interface ActivityStats {
   path: string;
   bytes: number;
   entries: number;
+  /** `warn`: over the warning size; `full`: at the limit, the oldest entries are being dropped. */
+  level: 'ok' | 'warn' | 'full';
+  warnBytes: number;
   maxBytes: number;
   retentionDays: number;
 }
