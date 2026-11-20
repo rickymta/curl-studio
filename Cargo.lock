@@ -813,7 +813,7 @@ dependencies = [
 
 [[package]]
 name = "curlstudio"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "axum",
  "curlstudio-core",
@@ -828,7 +828,7 @@ dependencies = [
 
 [[package]]
 name = "curlstudio-core"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "axum",
  "base64 0.22.1",

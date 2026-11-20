@@ -2,6 +2,20 @@
 
 Các thay đổi đáng chú ý của CurlStudio. File này do `pnpm release` cập nhật.
 
+## v0.2.0 - 2026-11-20
+
+Thay đổi từ v0.1.1.
+
+- feat(i18n): Vietnamese interface (aadebd7)
+- feat(i18n): language infrastructure, first-run picker and Appearance setting (ed577ae)
+- style: rustfmt and clippy (collapsible_if) for the new shell code (d88e37e)
+- docs: README for the new shell features (512e764)
+- feat(window): single instance and a start size that fits the screen (8119f6f)
+- feat(shell): F5 / Ctrl+R reload the workspace, theme toggle in the title bar (4a74869)
+- feat(activity): configurable log limits, size warnings and confirm before clearing (16ab220)
+- fix(shell): disable the webview's F1-F12 default actions in the desktop app (f5a5089)
+- feat(shell): GitStudio-style notifications and global error toasts (5874ea0)
+
 ## v0.1.1 - 2026-11-20
 
 Thay đổi từ v0.1.0.
