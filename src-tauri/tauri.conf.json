@@ -16,6 +16,7 @@
         "title": "CurlStudio",
         "width": 1440,
         "height": 900,
+        "visible": false,
         "minWidth": 1000,
         "minHeight": 620,
         "center": true

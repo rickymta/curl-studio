@@ -29,6 +29,10 @@ tauri-plugin-opener = "2.7.3"
 tokio.workspace = true
 axum = { workspace = true, optional = true }
 
+# Desktop only: a second launch focuses the running window instead of starting another.
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2.4.5"
+
 [features]
 custom-protocol = ["tauri/custom-protocol"]
 # Debug-only HTTP bridge so the UI can run in a plain browser against the real backend.
