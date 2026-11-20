@@ -112,6 +112,8 @@ lets you verify the downloads.
   `activity.jsonl`, filterable and exportable. Retention (30 days), warning size and maximum size
   (10 MB) are set in Settings → Data & Logs.
 - **Notifications** stack above the status bar; hover to read them all and pause their timers.
+- **English and Vietnamese** interface: chosen on first launch, changed in Settings → Appearance.
+  Exported reports, generated code and the Activity Logs file stay in English.
 - One window per user: launching CurlStudio again focuses the one that is running.
 - **In-app terminal** (Ctrl+`): real PTY sessions (PowerShell, PowerShell 7, cmd, Git Bash or your
   `$SHELL`), using your Windows Terminal font.

@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 
 import { Badge, Button, cn, IconButton } from '@/components/ui';
 import { contextFor } from '@/lib/execute';
+import { t } from '@/lib/i18n';
 import { findItem, PROTOCOL_LABEL, itemProtocol } from '@/lib/postman';
 import type { PmItem } from '@/lib/types';
 import { flatten } from '@/lib/vars';
@@ -46,7 +47,7 @@ export function saveTab(tab: RequestTabT) {
     Object.assign(it, JSON.parse(JSON.stringify(tab.draft)), { id });
   });
   useTabs.getState().markSaved(tab.id, tab.collectionId, tab.itemId);
-  toast('success', 'Saved');
+  toast('success', t('Saved'));
 }
 
 export function RequestHeader({ tab, extra }: { tab: RequestTabT; extra?: React.ReactNode }) {
@@ -72,17 +73,17 @@ export function RequestHeader({ tab, extra }: { tab: RequestTabT; extra?: React.
           className="min-w-24 rounded px-1 font-medium outline-none hover:bg-surface-hover focus:bg-surface-hover"
           style={{ width: `${Math.max(8, tab.draft.name.length + 2)}ch` }}
         />
-        {!tab.collectionId && <Badge>Unsaved</Badge>}
+        {!tab.collectionId && <Badge>{t('Unsaved')}</Badge>}
       </div>
       <div className="flex-1" />
       {extra}
       {(proto === 'http' || proto === 'graphql') && (
-        <IconButton label="Code snippet / cURL" onClick={() => useUi.getState().show({ kind: 'code', tabId: tab.id })}>
+        <IconButton label={t('Code snippet / cURL')} onClick={() => useUi.getState().show({ kind: 'code', tabId: tab.id })}>
           <Code2 className="size-4" />
         </IconButton>
       )}
       <Button size="sm" onClick={() => saveTab(tab)} className={cn(tab.dirty && 'border-accent text-accent')}>
-        <Save className="size-3.5" /> Save
+        <Save className="size-3.5" /> {t('Save')}
       </Button>
     </div>
   );

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Badge, Button, Dropdown, Empty, Spinner, Textarea } from '@/components/ui';
 import { formatDuration } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { api } from '@/lib/ipc';
 import { aggregateCsv, htmlReport, junitXml, markdownSummary, timelineCsv } from '@/lib/load/report';
 import type { Point, RunRecord, Summary } from '@/lib/load/types';
@@ -38,10 +39,10 @@ export async function exportRun(run: RunRecord, kind: 'html' | 'html-dark' | 'js
         break;
       case 'md':
         await copyText(markdownSummary(run));
-        toast('success', 'Markdown summary copied');
+        toast('success', t('Markdown summary copied'));
         return;
     }
-    if (ok) toast('success', 'Report exported');
+    if (ok) toast('success', t('Report exported'));
   } catch (e) {
     toast('error', errText(e));
   }
@@ -51,18 +52,18 @@ export function ExportMenu({ run }: { run: RunRecord }) {
   return (
     <Dropdown
       items={[
-        { label: 'HTML report (light)', onSelect: () => exportRun(run, 'html') },
-        { label: 'HTML report (dark)', onSelect: () => exportRun(run, 'html-dark') },
+        { label: t('HTML report (light)'), onSelect: () => exportRun(run, 'html') },
+        { label: t('HTML report (dark)'), onSelect: () => exportRun(run, 'html-dark') },
         'sep',
-        { label: 'Raw results (JSON)', onSelect: () => exportRun(run, 'json') },
-        { label: 'Timeline per second (CSV)', onSelect: () => exportRun(run, 'csv') },
-        { label: 'Aggregate report (CSV)', onSelect: () => exportRun(run, 'aggregate') },
+        { label: t('Raw results (JSON)'), onSelect: () => exportRun(run, 'json') },
+        { label: t('Timeline per second (CSV)'), onSelect: () => exportRun(run, 'csv') },
+        { label: t('Aggregate report (CSV)'), onSelect: () => exportRun(run, 'aggregate') },
         { label: 'JUnit XML (CI)', onSelect: () => exportRun(run, 'junit') },
-        { label: 'Copy Markdown summary', onSelect: () => exportRun(run, 'md') },
+        { label: t('Copy Markdown summary'), onSelect: () => exportRun(run, 'md') },
       ]}
     >
       <Button size="sm">
-        <Download className="size-3.5" /> Export
+        <Download className="size-3.5" /> {t('Export')}
       </Button>
     </Dropdown>
   );
@@ -135,7 +136,7 @@ export function RunTab({ runId }: { runId: string }) {
     };
   }, [runId]);
 
-  if (error) return <Empty title="Run not found">{error}</Empty>;
+  if (error) return <Empty title={t('Run not found')}>{error}</Empty>;
   if (!run && !live) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -156,22 +157,22 @@ export function RunTab({ runId }: { runId: string }) {
         <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2">
           <Spinner className="text-accent" />
           <div className="min-w-0">
-            <div className="font-semibold">Running… {live.state === 'stopping' && <Badge tone="warning">stopping (graceful)</Badge>}</div>
+            <div className="font-semibold">{t('Running…')} {live.state === 'stopping' && <Badge tone="warning">{t('stopping (graceful)')}</Badge>}</div>
             <div className="text-[12px] text-muted-foreground">
-              {formatDuration(live.elapsed)} / {formatDuration(live.planned)} · {live.vus} VUs active {live.reason && `· ${live.reason}`}
+              {formatDuration(live.elapsed)} / {formatDuration(live.planned)} · {t('{n} VUs active', { n: live.vus })} {live.reason && `· ${live.reason}`}
             </div>
           </div>
           <div className="mx-4 h-1.5 flex-1 overflow-hidden rounded bg-surface-muted">
             <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
           </div>
           <Button size="sm" onClick={() => api.loadStop(runId, false)}>
-            <Square className="size-3.5" /> Stop
+            <Square className="size-3.5" /> {t('Stop')}
           </Button>
-          <Button size="sm" variant="danger" onClick={() => api.loadStop(runId, true)} title="Abandon in-flight requests">
-            <Octagon className="size-3.5" /> Kill
+          <Button size="sm" variant="danger" onClick={() => api.loadStop(runId, true)} title={t('Abandon in-flight requests')}>
+            <Octagon className="size-3.5" /> {t('Kill')}
           </Button>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto p-4">{d ? <ReportBody d={d} /> : <Empty title="Waiting for the first samples…" />}</div>
+        <div className="min-h-0 flex-1 overflow-auto p-4">{d ? <ReportBody d={d} /> : <Empty title={t('Waiting for the first samples…')} />}</div>
       </div>
     );
   }
@@ -190,13 +191,13 @@ export function RunTab({ runId }: { runId: string }) {
     const next = { ...r, meta: { ...(r.meta ?? {}), notes } };
     await api.put('loadRuns', r.id, next);
     setRun(next);
-    toast('success', 'Notes saved');
+    toast('success', t('Notes saved'));
   };
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2">
         <Badge tone={s.verdict === 'passed' ? 'success' : 'danger'} className="px-2 py-1 text-[13px]">
-          {s.verdict === 'passed' ? 'PASSED' : 'FAILED'}
+          {s.verdict === 'passed' ? t('PASSED') : t('FAILED')}
         </Badge>
         <div className="min-w-0 flex-1">
           <div className="truncate font-semibold">{r.name}</div>
@@ -206,7 +207,7 @@ export function RunTab({ runId }: { runId: string }) {
         </div>
         {r.meta?.scenarioId && (
           <Button size="sm" onClick={() => startScenario(r.meta!.scenarioId!)}>
-            <RotateCcw className="size-3.5" /> Run again
+            <RotateCcw className="size-3.5" /> {t('Run again')}
           </Button>
         )}
         <ExportMenu run={r} />
@@ -214,11 +215,11 @@ export function RunTab({ runId }: { runId: string }) {
       <div className="min-h-0 flex-1 overflow-auto p-4">
         <ReportBody d={d} />
         <div className="mt-3 rounded-lg border border-border bg-surface p-3">
-          <div className="mb-1 text-[12.5px] font-semibold">Notes</div>
-          <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observations, build/version under test, follow-ups… (included in the HTML report)" />
+          <div className="mb-1 text-[12.5px] font-semibold">{t('Notes')}</div>
+          <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('Observations, build/version under test, follow-ups… (included in the HTML report)')} />
           <div className="mt-2 flex justify-end">
             <Button size="sm" onClick={saveNotes}>
-              Save notes
+              {t('Save notes')}
             </Button>
           </div>
         </div>

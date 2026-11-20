@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 
+import { t } from './i18n';
 import type * as T from './types';
 import type * as L from './load/types';
 
@@ -23,7 +24,7 @@ function toError(e: unknown): IpcError {
   if (e instanceof TypeError) {
     return new IpcError({
       kind: 'bridge',
-      message: `Backend unreachable (${e.message}). Run \`pnpm bridge\` or the desktop app.`,
+      message: t('Backend unreachable ({error}). Run `pnpm bridge` or the desktop app.', { error: e.message }),
     });
   }
   return new IpcError({ kind: 'unknown', message: String(e) });

@@ -2,7 +2,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { fromRun, ReportBody } from '@/features/load/RunReport';
+import { fromRun, ReportBody, setReportEnglish } from '@/features/load/RunReport';
 
 import { formatBytes, formatDuration, formatMs, formatNum, formatPct } from '../format';
 import type { RunRecord, Summary } from './types';
@@ -25,7 +25,14 @@ function collectCss(): string {
 export function htmlReport(run: RunRecord, theme: 'light' | 'dark' = 'light'): string {
   const d = fromRun(run);
   const s = run.summary;
-  const body = renderToStaticMarkup(createElement(ReportBody, { d, staticWidth: 1180 }));
+  // Exported reports stay English whatever the app language is.
+  let body: string;
+  setReportEnglish(true);
+  try {
+    body = renderToStaticMarkup(createElement(ReportBody, { d, staticWidth: 1180 }));
+  } finally {
+    setReportEnglish(false);
+  }
   const verdict = s.verdict === 'passed';
   const sc = run.scenario;
   const profile =

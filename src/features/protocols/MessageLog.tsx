@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge, cn, IconButton } from '@/components/ui';
 import { prettyJson } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import type { SessionMessage } from '@/lib/types';
 
 function time(ts: number) {
@@ -52,19 +53,19 @@ export function MessageLog({ messages, onClear }: { messages: SessionMessage[]; 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2">
-        <span className="text-[12px] font-semibold">Messages</span>
+        <span className="text-[12px] font-semibold">{t('Messages')}</span>
         <Badge>{messages.length}</Badge>
         {(['all', 'in', 'out'] as const).map((d) => (
           <button key={d} type="button" onClick={() => setDir(d)} className={cn('rounded px-1.5 text-[12px]', dir === d ? 'bg-surface-hover' : 'text-muted-foreground')}>
-            {d === 'all' ? 'All' : d === 'in' ? 'Received' : 'Sent'}
+            {d === 'all' ? t('All') : d === 'in' ? t('Received') : t('Sent')}
           </button>
         ))}
         <div className="flex-1" />
         <div className="flex h-6 items-center gap-1 rounded border border-border px-1.5">
           <Search className="size-3 text-muted-foreground" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="w-36 bg-transparent text-[12px] outline-none" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Search')} className="w-36 bg-transparent text-[12px] outline-none" />
         </div>
-        <IconButton label="Clear messages" onClick={onClear}>
+        <IconButton label={t('Clear messages')} onClick={onClear}>
           <Trash2 className="size-3.5" />
         </IconButton>
       </div>
@@ -76,7 +77,7 @@ export function MessageLog({ messages, onClear }: { messages: SessionMessage[]; 
           stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
         }}
       >
-        {shown.length === 0 && <div className="p-6 text-center text-muted-foreground">No messages</div>}
+        {shown.length === 0 && <div className="p-6 text-center text-muted-foreground">{t('No messages')}</div>}
         {shown.map((m, i) => (
           <Row key={`${m.seq}-${i}`} m={m} />
         ))}

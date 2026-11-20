@@ -6,6 +6,7 @@ import { Button, Checkbox, cn, Field, IconButton, Input, Modal, Select } from '@
 import { buildSpec } from '@/lib/build';
 import { LANGUAGES } from '@/lib/codegen';
 import { contextFor } from '@/lib/execute';
+import { plural, t } from '@/lib/i18n';
 import { api } from '@/lib/ipc';
 import { copyText } from '@/lib/native';
 import { clone, findItem, isFolder, uid } from '@/lib/postman';
@@ -28,14 +29,14 @@ function ImportDialog({ initial }: { initial?: string }) {
   const doImport = () => {
     try {
       const done = importJsonText(text.trim());
-      toast('success', `Imported ${done.join(', ')}`);
+      toast('success', t('Imported {list}', { list: done.join(', ') }));
       close();
     } catch (e) {
       toast('error', errText(e));
     }
   };
   return (
-    <Modal open onClose={close} title="Import" width={680} description="Postman collections (v1, v2.0, v2.1), environments, globals, full data dumps, or a cURL command.">
+    <Modal open onClose={close} title={t('Import')} width={680} description={t('Postman collections (v1, v2.0, v2.1), environments, globals, full data dumps, or a cURL command.')}>
       <div className="space-y-3">
         <div
           onDragOver={(e) => e.preventDefault()}
@@ -50,30 +51,30 @@ function ImportDialog({ initial }: { initial?: string }) {
               }
             }
             if (done.length) {
-              toast('success', `Imported ${done.join(', ')}`);
+              toast('success', t('Imported {list}', { list: done.join(', ') }));
               close();
             }
           }}
           className="flex flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border p-6 text-muted-foreground"
         >
           <FileUp className="size-6" />
-          Drop files here or
+          {t('Drop files here or')}
           <Button
             onClick={async () => {
               close();
               await importFiles();
             }}
           >
-            Choose files…
+            {t('Choose files…')}
           </Button>
         </div>
-        <Field label="…or paste raw text (JSON or cURL)">
+        <Field label={t('…or paste raw text (JSON or cURL)')}>
           <CodeEditor value={text} onChange={setText} language={text.trim().startsWith('curl') ? 'text' : 'json'} className="h-56 rounded-md border border-border" placeholder="curl https://api.example.com -H 'Accept: application/json'" />
         </Field>
         <div className="flex justify-end gap-2">
-          <Button onClick={close}>Cancel</Button>
+          <Button onClick={close}>{t('Cancel')}</Button>
           <Button variant="primary" disabled={!text.trim()} onClick={doImport}>
-            Import
+            {t('Import')}
           </Button>
         </div>
       </div>
@@ -118,7 +119,7 @@ function CodeDialog({ tabId }: { tabId: string }) {
     void typeInTerminal(cmd);
   };
   return (
-    <Modal open onClose={close} title="Code snippet" width={820}>
+    <Modal open onClose={close} title={t('Code snippet')} width={820}>
       <div className="flex gap-3">
         <div className="w-52 shrink-0 space-y-0.5">
           {LANGUAGES.map((l) => (
@@ -138,13 +139,13 @@ function CodeDialog({ tabId }: { tabId: string }) {
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <CodeEditor value={code} readOnly language={lang === 'fetch' || lang === 'axios' ? 'javascript' : 'text'} className="h-[420px] rounded-md border border-border" wrap />
           <div className="flex items-center gap-2">
-            <Checkbox checked={resolveVars} onChange={setResolveVars} label="Resolve variables" />
+            <Checkbox checked={resolveVars} onChange={setResolveVars} label={t('Resolve variables')} />
             <div className="flex-1" />
-            <Button onClick={runInTerminal} title="Type the cURL command into the in-app terminal (press Enter there to run it)">
-              <SquareTerminal className="size-3.5" /> Run in terminal
+            <Button onClick={runInTerminal} title={t('Type the cURL command into the in-app terminal (press Enter there to run it)')}>
+              <SquareTerminal className="size-3.5" /> {t('Run in terminal')}
             </Button>
-            <Button variant="primary" onClick={() => copyText(code).then(() => toast('success', 'Copied to clipboard'))}>
-              <Copy className="size-3.5" /> Copy
+            <Button variant="primary" onClick={() => copyText(code).then(() => toast('success', t('Copied to clipboard')))}>
+              <Copy className="size-3.5" /> {t('Copy')}
             </Button>
           </div>
         </div>
@@ -164,15 +165,15 @@ function CookiesDialog() {
   }, []);
   const domains = [...new Set(list.map((c) => c.domain))];
   return (
-    <Modal open onClose={close} title="Cookies" width={760} description="The workspace cookie jar: cookies set by responses are sent automatically on later requests.">
+    <Modal open onClose={close} title={t('Cookies')} width={760} description={t('The workspace cookie jar: cookies set by responses are sent automatically on later requests.')}>
       <div className="max-h-[50vh] space-y-3 overflow-auto">
-        {domains.length === 0 && <div className="text-muted-foreground">No cookies yet.</div>}
+        {domains.length === 0 && <div className="text-muted-foreground">{t('No cookies yet.')}</div>}
         {domains.map((d) => (
           <div key={d} className="rounded-md border border-border">
             <div className="flex items-center gap-2 bg-surface-muted px-2 py-1 font-medium">
               <span className="flex-1">{d}</span>
               <Button size="sm" variant="ghost" onClick={() => api.clearCookies(d).then(load)}>
-                Clear domain
+                {t('Clear domain')}
               </Button>
             </div>
             {list
@@ -181,9 +182,9 @@ function CookiesDialog() {
                 <div key={`${c.path}-${c.name}`} className="flex items-center gap-2 border-t border-border px-2 py-1 font-mono text-[12px]">
                   <span className="text-accent">{c.name}</span>=<span className="min-w-0 flex-1 truncate">{c.value}</span>
                   <span className="text-[11px] text-muted-foreground">
-                    {c.path} {c.secure && 'Secure'} {c.httpOnly && 'HttpOnly'} {c.expires ? new Date(c.expires * 1000).toLocaleString() : 'Session'}
+                    {c.path} {c.secure && 'Secure'} {c.httpOnly && 'HttpOnly'} {c.expires ? new Date(c.expires * 1000).toLocaleString() : t('Session')}
                   </span>
-                  <IconButton label="Delete cookie" onClick={() => api.removeCookie(c.domain, c.path, c.name).then(load)}>
+                  <IconButton label={t('Delete cookie')} onClick={() => api.removeCookie(c.domain, c.path, c.name).then(load)}>
                     <Trash2 className="size-3.5" />
                   </IconButton>
                 </div>
@@ -192,7 +193,7 @@ function CookiesDialog() {
         ))}
       </div>
       <div className="mt-3 flex items-end gap-2 border-t border-border pt-3">
-        <Field label="Domain" className="w-48">
+        <Field label={t('Domain')} className="w-48">
           <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="example.com" />
         </Field>
         <Field label="Cookie" className="flex-1">
@@ -210,10 +211,10 @@ function CookiesDialog() {
               .catch((e) => toast('error', errText(e)))
           }
         >
-          Add
+          {t('Add')}
         </Button>
         <Button variant="danger" onClick={() => api.clearCookies().then(load)}>
-          Clear all
+          {t('Clear all')}
         </Button>
       </div>
     </Modal>
@@ -241,7 +242,7 @@ function SaveAsDialog({ tabId, then }: { tabId: string; then?: () => void }) {
   if (collections[cid]) walk(collections[cid]!.item, '');
   const save = () => {
     let target = cid;
-    if (!target) target = createCollection('My Collection');
+    if (!target) target = createCollection(t('My Collection'));
     const item: PmItem = { ...clone(tab.draft), id: uid(), name: name || tab.draft.name };
     useWorkspace.getState().updateCollection(target, (c) => {
       if (folder) {
@@ -255,28 +256,28 @@ function SaveAsDialog({ tabId, then }: { tabId: string; then?: () => void }) {
     });
     useTabs.getState().updateDraft(tab.id, (d) => Object.assign(d, { id: item.id, name: item.name }));
     useTabs.getState().markSaved(tab.id, target, item.id!);
-    toast('success', 'Saved');
+    toast('success', t('Saved'));
     close();
     then?.();
   };
   return (
-    <Modal open onClose={close} title="Save request">
+    <Modal open onClose={close} title={t('Save request')}>
       <div className="space-y-3">
-        <Field label="Request name">
+        <Field label={t('Request name')}>
           <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </Field>
-        <Field label="Collection">
-          <Select value={cid} onChange={(v) => (setCid(v), setFolder(''))} options={order.length ? order.map((id) => ({ value: id, label: collections[id]!.info.name })) : [{ value: '', label: 'Create “My Collection”' }]} />
+        <Field label={t('Collection')}>
+          <Select value={cid} onChange={(v) => (setCid(v), setFolder(''))} options={order.length ? order.map((id) => ({ value: id, label: collections[id]!.info.name })) : [{ value: '', label: t('Create “My Collection”') }]} />
         </Field>
         {folders.length > 0 && (
-          <Field label="Folder">
-            <Select value={folder} onChange={setFolder} options={[{ value: '', label: '(collection root)' }, ...folders.map((f) => ({ value: f.id, label: f.label }))]} />
+          <Field label={t('Folder')}>
+            <Select value={folder} onChange={setFolder} options={[{ value: '', label: t('(collection root)') }, ...folders.map((f) => ({ value: f.id, label: f.label }))]} />
           </Field>
         )}
         <div className="flex justify-end gap-2">
-          <Button onClick={close}>Cancel</Button>
+          <Button onClick={close}>{t('Cancel')}</Button>
           <Button variant="primary" onClick={save}>
-            Save
+            {t('Save')}
           </Button>
         </div>
       </div>
@@ -302,9 +303,9 @@ function PromptDialog({ d }: { d: Extract<NonNullable<ReturnType<typeof useUi.ge
           <Input value={value} onChange={(e) => setValue(e.target.value)} autoFocus onFocus={(e) => e.target.select()} />
         </Field>
         <div className="flex justify-end gap-2">
-          <Button onClick={close}>Cancel</Button>
+          <Button onClick={close}>{t('Cancel')}</Button>
           <Button variant="primary" type="submit">
-            OK
+            {t('OK')}
           </Button>
         </div>
       </form>
@@ -345,19 +346,19 @@ function UnsavedDialog({ tabIds }: { tabIds: string[] }) {
     }
   };
   return (
-    <Modal open onClose={cancel} title="Save changes?">
+    <Modal open onClose={cancel} title={t('Save changes?')}>
       <div className="space-y-4">
         <p className="text-[13px]">
-          <span className="font-semibold break-all">{tab.draft.name}</span> has unsaved changes. Save these changes to avoid losing your work.
-          {rest.length > 0 && <span className="text-muted-foreground"> ({rest.length} more tab{rest.length > 1 ? 's' : ''} after this one.)</span>}
+          <span className="font-semibold break-all">{tab.draft.name}</span> {t('has unsaved changes. Save these changes to avoid losing your work.')}
+          {rest.length > 0 && <span className="text-muted-foreground"> {t(plural(rest.length, '({n} more tab after this one.)', '({n} more tabs after this one.)'), { n: rest.length })}</span>}
         </p>
-        <Checkbox checked={always} onChange={setAlways} label="Always discard unsaved changes when closing a tab" title="You can turn this back off in Settings" />
+        <Checkbox checked={always} onChange={setAlways} label={t('Always discard unsaved changes when closing a tab')} title={t('You can turn this back off in Settings')} />
         <div className="flex items-center gap-2">
-          <Button onClick={dontSave}>Don't save</Button>
+          <Button onClick={dontSave}>{t("Don't save")}</Button>
           <div className="flex-1" />
-          <Button onClick={cancel}>Cancel</Button>
+          <Button onClick={cancel}>{t('Cancel')}</Button>
           <Button variant="primary" data-autofocus onClick={save}>
-            Save changes
+            {t('Save changes')}
           </Button>
         </div>
       </div>
@@ -395,7 +396,7 @@ export function Dialogs() {
       return (
         <Modal open onClose={back} title={d.title} description={d.message}>
           <div className="flex justify-end gap-2">
-            <Button onClick={back}>Cancel</Button>
+            <Button onClick={back}>{t('Cancel')}</Button>
             <Button
               variant={d.danger ? 'danger' : 'primary'}
               autoFocus
@@ -404,7 +405,7 @@ export function Dialogs() {
                 d.onConfirm();
               }}
             >
-              {d.confirmLabel ?? 'OK'}
+              {d.confirmLabel ?? t('OK')}
             </Button>
           </div>
         </Modal>

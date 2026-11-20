@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ChartCard, Legend, LineChart, SERIES } from '@/components/charts';
 import { Badge, Empty, Spinner } from '@/components/ui';
 import { formatBytes, formatDuration, formatMs, formatNum, formatPct, relTime } from '@/lib/format';
+import { plural, t } from '@/lib/i18n';
 import { api } from '@/lib/ipc';
 import type { RunRecord, Summary } from '@/lib/load/types';
 import { uid } from '@/lib/postman';
@@ -52,9 +53,9 @@ export function CompareTab({ runIds }: { runIds: string[] }) {
     Promise.all(runIds.map((id) => api.get<RunRecord>('loadRuns', id).catch(() => null))).then((r) => setRuns(r.filter((x): x is RunRecord => !!x)));
   }, [runIds]);
   if (!runs) return <div className="flex h-full items-center justify-center"><Spinner /></div>;
-  if (runs.length < 2) return <Empty title="Need at least two runs">Some selected runs no longer exist.</Empty>;
+  if (runs.length < 2) return <Empty title={t('Need at least two runs')}>{t('Some selected runs no longer exist.')}</Empty>;
   const base = runs[0]!;
-  const label = (r: RunRecord, i: number) => `${i === 0 ? 'Baseline' : `Run ${i + 1}`} · ${new Date(r.startedAt).toLocaleString()}`;
+  const label = (r: RunRecord, i: number) => `${i === 0 ? t('Baseline') : t('Run {n}', { n: i + 1 })} · ${new Date(r.startedAt).toLocaleString()}`;
   const colors = runs.map((_, i) => SERIES[i]!);
   // Compare by elapsed seconds since start.
   const maxT = Math.max(...runs.map((r) => r.timeline.length));
@@ -65,20 +66,20 @@ export function CompareTab({ runIds }: { runIds: string[] }) {
   return (
     <div className="h-full overflow-auto p-4">
       <div className="mb-3">
-        <h2 className="text-[16px] font-semibold">Run comparison</h2>
-        <p className="text-[12px] text-muted-foreground">Deltas are relative to the baseline (first run). Green = better, red = worse (changes over 5%).</p>
+        <h2 className="text-[16px] font-semibold">{t('Run comparison')}</h2>
+        <p className="text-[12px] text-muted-foreground">{t('Deltas are relative to the baseline (first run). Green = better, red = worse (changes over 5%).')}</p>
       </div>
-      <ChartCard title="Key metrics">
+      <ChartCard title={t('Key metrics')}>
         <div className="overflow-auto">
           <table className="w-full text-[12.5px] whitespace-nowrap">
             <thead>
               <tr className="border-b border-border text-left text-[11px] text-muted-foreground">
-                <th className="px-2 py-1 font-medium">Metric</th>
+                <th className="px-2 py-1 font-medium">{t('Metric')}</th>
                 {runs.map((r, i) => (
                   <th key={r.id} className="px-2 py-1 text-right font-medium">
                     <span className="inline-flex items-center gap-1.5">
                       <span className="inline-block size-2 rounded-full" style={{ background: colors[i] }} />
-                      {i === 0 ? 'Baseline' : `Run ${i + 1}`}
+                      {i === 0 ? t('Baseline') : t('Run {n}', { n: i + 1 })}
                     </span>
                     <div className="font-normal">{r.name}</div>
                     <div className="font-normal">{relTime(Date.parse(r.startedAt))} · {formatDuration(r.summary.durationS)}</div>
@@ -88,16 +89,16 @@ export function CompareTab({ runIds }: { runIds: string[] }) {
             </thead>
             <tbody>
               <tr className="border-b border-border">
-                <td className="px-2 py-1">Verdict</td>
+                <td className="px-2 py-1">{t('Verdict')}</td>
                 {runs.map((r) => (
                   <td key={r.id} className="px-2 py-1 text-right">
-                    <Badge tone={r.summary.verdict === 'passed' ? 'success' : 'danger'}>{r.summary.verdict || 'n/a'}</Badge>
+                    <Badge tone={r.summary.verdict === 'passed' ? 'success' : 'danger'}>{r.summary.verdict ? t(r.summary.verdict) : 'n/a'}</Badge>
                   </td>
                 ))}
               </tr>
               {METRICS.map((m) => (
                 <tr key={m.label} className="border-b border-border">
-                  <td className="px-2 py-1">{m.label}</td>
+                  <td className="px-2 py-1">{t(m.label)}</td>
                   {runs.map((r, i) => (
                     <td key={r.id} className="px-2 py-1 text-right font-mono">
                       {m.fmt(m.get(r.summary))} {i > 0 && <span className="ml-1 text-[11px]"><Delta base={m.get(base.summary)} v={m.get(r.summary)} lower={m.lower} /></span>}
@@ -110,27 +111,27 @@ export function CompareTab({ runIds }: { runIds: string[] }) {
         </div>
       </ChartCard>
       <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <ChartCard title="p95 latency over time" legend={legend}>
+        <ChartCard title={t('p95 latency over time')} legend={legend}>
           <LineChart x={x} yFormat={formatMs} series={series((p) => (p.requests ? p.p95 : null))} />
         </ChartCard>
-        <ChartCard title="Throughput over time" subtitle="requests/s" legend={legend}>
+        <ChartCard title={t('Throughput over time')} subtitle="requests/s" legend={legend}>
           <LineChart x={x} series={series((p) => p.requests)} />
         </ChartCard>
-        <ChartCard title="Error rate over time" legend={legend}>
+        <ChartCard title={t('Error rate over time')} legend={legend}>
           <LineChart x={x} yMax={0.05} yFormat={(v) => `${(v * 100).toFixed(1)}%`} series={series((p) => (p.requests ? p.failures / p.requests : null))} />
         </ChartCard>
-        <ChartCard title="Virtual users" legend={legend}>
+        <ChartCard title={t('Virtual users')} legend={legend}>
           <LineChart x={x} series={series((p) => p.vus)} />
         </ChartCard>
       </div>
-      <ChartCard title="Per request: p95 latency and error rate" className="mt-3">
+      <ChartCard title={t('Per request: p95 latency and error rate')} className="mt-3">
         <table className="w-full text-[12.5px]">
           <thead>
             <tr className="border-b border-border text-left text-[11px] text-muted-foreground">
-              <th className="px-2 py-1 font-medium">Request</th>
+              <th className="px-2 py-1 font-medium">{t('Request')}</th>
               {runs.map((r, i) => (
                 <th key={r.id} className="px-2 py-1 text-right font-medium">
-                  {i === 0 ? 'Baseline' : `Run ${i + 1}`}
+                  {i === 0 ? t('Baseline') : t('Run {n}', { n: i + 1 })}
                 </th>
               ))}
             </tr>
@@ -185,28 +186,28 @@ export function RunsListTab() {
   return (
     <div className="h-full overflow-auto p-4">
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="flex-1 text-[16px] font-semibold">Load test runs</h2>
+        <h2 className="flex-1 text-[16px] font-semibold">{t('Load test runs')}</h2>
         <button
           type="button"
           disabled={picked.length < 2}
           onClick={() => useTabs.getState().open({ id: uid(), kind: 'compare', runIds: picked })}
           className="rounded-md bg-accent px-3 py-1 text-accent-foreground disabled:opacity-40"
         >
-          Compare selected ({picked.length})
+          {t('Compare selected ({n})', { n: picked.length })}
         </button>
       </div>
       {[...byScenario.entries()].map(([k, list]) => {
         const ordered = [...list].reverse();
         return (
-          <ChartCard key={k} title={list[0]!.name} subtitle={`${list.length} runs`} className="mb-3">
+          <ChartCard key={k} title={list[0]!.name} subtitle={t(plural(list.length, '{n} run', '{n} runs'), { n: list.length })} className="mb-3">
             {ordered.length > 1 && (
               <div className="mb-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div>
-                  <div className="text-[11px] text-muted-foreground">p95 latency trend</div>
+                  <div className="text-[11px] text-muted-foreground">{t('p95 latency trend')}</div>
                   <LineChart height={120} x={ordered.map((_, i) => i + 1)} xFormat={(v) => `#${v}`} yFormat={formatMs} series={[{ name: 'p95', color: SERIES[1]!, values: ordered.map((r) => r.summary.latency.p95) }]} />
                 </div>
                 <div>
-                  <div className="text-[11px] text-muted-foreground">throughput trend (req/s)</div>
+                  <div className="text-[11px] text-muted-foreground">{t('throughput trend (req/s)')}</div>
                   <LineChart height={120} x={ordered.map((_, i) => i + 1)} xFormat={(v) => `#${v}`} series={[{ name: 'req/s', color: SERIES[0]!, values: ordered.map((r) => r.summary.rps) }]} />
                 </div>
               </div>
@@ -215,13 +216,13 @@ export function RunsListTab() {
               <thead>
                 <tr className="border-b border-border text-left text-[11px] text-muted-foreground">
                   <th className="w-6" />
-                  <th className="px-2 py-1 font-medium">Started</th>
-                  <th className="px-2 py-1 font-medium">Verdict</th>
-                  <th className="px-2 py-1 text-right font-medium">Duration</th>
+                  <th className="px-2 py-1 font-medium">{t('Started')}</th>
+                  <th className="px-2 py-1 font-medium">{t('Verdict')}</th>
+                  <th className="px-2 py-1 text-right font-medium">{t('Duration')}</th>
                   <th className="px-2 py-1 text-right font-medium">VUs</th>
                   <th className="px-2 py-1 text-right font-medium">Req/s</th>
                   <th className="px-2 py-1 text-right font-medium">p95</th>
-                  <th className="px-2 py-1 text-right font-medium">Errors</th>
+                  <th className="px-2 py-1 text-right font-medium">{t('Errors')}</th>
                   <th className="w-16" />
                 </tr>
               </thead>
@@ -233,7 +234,7 @@ export function RunsListTab() {
                     </td>
                     <td className="px-2 py-1">{new Date(r.startedAt).toLocaleString()}</td>
                     <td className="px-2 py-1">
-                      <Badge tone={r.summary.verdict === 'passed' ? 'success' : 'danger'}>{r.summary.verdict}</Badge>
+                      <Badge tone={r.summary.verdict === 'passed' ? 'success' : 'danger'}>{r.summary.verdict ? t(r.summary.verdict) : r.summary.verdict}</Badge>
                     </td>
                     <td className="px-2 py-1 text-right">{formatDuration(r.summary.durationS)}</td>
                     <td className="px-2 py-1 text-right font-mono">{r.summary.vusMax}</td>
@@ -245,13 +246,13 @@ export function RunsListTab() {
                         type="button"
                         className="text-[11px] text-muted-foreground hover:text-danger"
                         onClick={() =>
-                          confirmAction('Delete run', 'Delete this run?', async () => {
+                          confirmAction(t('Delete run'), t('Delete this run?'), async () => {
                             await api.remove('loadRuns', r.id);
                             useRuns.getState().refresh();
                           })
                         }
                       >
-                        Delete
+                        {t('Delete')}
                       </button>
                     </td>
                   </tr>
@@ -261,7 +262,7 @@ export function RunsListTab() {
           </ChartCard>
         );
       })}
-      {!runs.length && <Empty title="No runs yet">Open a scenario and press Run test.</Empty>}
+      {!runs.length && <Empty title={t('No runs yet')}>{t('Open a scenario and press Run test.')}</Empty>}
     </div>
   );
 }

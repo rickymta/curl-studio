@@ -1,5 +1,5 @@
 import { FileUp, Plug, PlugZap, Plus, RefreshCw, Save, Send, Trash2, X } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, type ReactNode, useState } from 'react';
 
 import { CodeEditor } from '@/components/CodeEditor';
 import { KeyValueTable, VarInput } from '@/components/KeyValueTable';
@@ -7,6 +7,7 @@ import { Split } from '@/components/Split';
 import { Badge, Button, Checkbox, cn, Field, IconButton, Input, Select, Spinner, Tabs } from '@/components/ui';
 import { buildSpec } from '@/lib/build';
 import { contextFor } from '@/lib/execute';
+import { t } from '@/lib/i18n';
 import { api } from '@/lib/ipc';
 import { pickFiles } from '@/lib/native';
 import { makeUrl, urlRaw } from '@/lib/postman';
@@ -34,10 +35,15 @@ function useUpdate(tab: RequestTabT) {
   return (fn: (d: PmItem) => void) => useTabs.getState().updateDraft(tab.id, fn);
 }
 
+/** Puts inline elements into a translated sentence: `{0}`, `{1}`… mark where each node goes. */
+function rich(text: string, ...nodes: ReactNode[]) {
+  return text.split(/\{(\d)\}/).map((s, i) => (i % 2 ? <Fragment key={i}>{nodes[Number(s)]}</Fragment> : s));
+}
+
 function StateBadge({ state }: { state: string | undefined }) {
-  if (state === 'open') return <Badge tone="success">Connected</Badge>;
-  if (state === 'connecting') return <Badge tone="warning">Connecting…</Badge>;
-  return <Badge>Disconnected</Badge>;
+  if (state === 'open') return <Badge tone="success">{t('Connected')}</Badge>;
+  if (state === 'connecting') return <Badge tone="warning">{t('Connecting…')}</Badge>;
+  return <Badge>{t('Disconnected')}</Badge>;
 }
 
 function ConnectBar({
@@ -72,11 +78,11 @@ function ConnectBar({
       </div>
       {open ? (
         <Button className="h-9 w-32" onClick={() => useSessions.getState().close(tab.id)}>
-          <PlugZap className="size-4" /> Disconnect
+          <PlugZap className="size-4" /> {t('Disconnect')}
         </Button>
       ) : (
         <Button variant="primary" className="h-9 w-32" onClick={onConnect}>
-          <Plug className="size-4" /> {connectLabel}
+          <Plug className="size-4" /> {t(connectLabel)}
         </Button>
       )}
     </div>
@@ -112,10 +118,10 @@ export function WsEditor({ tab }: { tab: RequestTabT }) {
         value={section}
         onChange={setSection}
         items={[
-          { id: 'message', label: 'Message' },
-          { id: 'saved', label: 'Saved messages', badge: saved.length || undefined },
-          { id: 'headers', label: 'Headers', badge: (tab.draft.request?.header ?? []).length || undefined },
-          { id: 'settings', label: 'Settings' },
+          { id: 'message', label: t('Message') },
+          { id: 'saved', label: t('Saved messages'), badge: saved.length || undefined },
+          { id: 'headers', label: t('Headers'), badge: (tab.draft.request?.header ?? []).length || undefined },
+          { id: 'settings', label: t('Settings') },
         ]}
       />
       <div className="min-h-0 flex-1 overflow-auto">
@@ -123,37 +129,37 @@ export function WsEditor({ tab }: { tab: RequestTabT }) {
           <div className="flex h-full flex-col">
             <CodeEditor value={message} onChange={setMessage} language={binary ? 'text' : 'json'} variables={known} className="min-h-0 flex-1" onRun={send} />
             <div className="flex shrink-0 items-center gap-3 border-t border-border p-2">
-              <Checkbox checked={binary} onChange={setBinary} label="Binary (base64)" />
+              <Checkbox checked={binary} onChange={setBinary} label={t('Binary (base64)')} />
               <div className="flex-1" />
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => {
-                  const name = window.prompt('Message name', `Message ${saved.length + 1}`);
+                  const name = window.prompt(t('Message name'), t('Message {n}', { n: saved.length + 1 }));
                   if (name) update((d) => void ((d['x-curlstudio'] ??= { kind: 'ws' }).ws = { ...(d['x-curlstudio']!.ws ?? {}), messages: [...saved, { name, data: message }] }));
                 }}
               >
-                <Save className="size-3.5" /> Save message
+                <Save className="size-3.5" /> {t('Save message')}
               </Button>
               <Button size="sm" variant="primary" disabled={live?.state !== 'open'} onClick={send}>
-                <Send className="size-3.5" /> Send
+                <Send className="size-3.5" /> {t('Send')}
               </Button>
             </div>
           </div>
         )}
         {section === 'saved' && (
           <div className="p-2">
-            {saved.length === 0 && <div className="p-4 text-center text-muted-foreground">No saved messages.</div>}
+            {saved.length === 0 && <div className="p-4 text-center text-muted-foreground">{t('No saved messages.')}</div>}
             {saved.map((m, i) => (
               <div key={i} className="group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-surface-hover">
                 <button type="button" className="min-w-0 flex-1 text-left" onClick={() => (setMessage(m.data), setSection('message'))}>
                   <div className="font-medium">{m.name}</div>
                   <div className="truncate font-mono text-[11.5px] text-muted-foreground">{m.data}</div>
                 </button>
-                <IconButton label="Send" disabled={live?.state !== 'open'} onClick={() => useSessions.getState().send(tab.id, { op: 'send', data: r(m.data) })}>
+                <IconButton label={t('Send')} disabled={live?.state !== 'open'} onClick={() => useSessions.getState().send(tab.id, { op: 'send', data: r(m.data) })}>
                   <Send className="size-3.5" />
                 </IconButton>
-                <IconButton label="Delete" onClick={() => update((d) => void (d['x-curlstudio']!.ws!.messages = saved.filter((_, j) => j !== i)))}>
+                <IconButton label={t('Delete')} onClick={() => update((d) => void (d['x-curlstudio']!.ws!.messages = saved.filter((_, j) => j !== i)))}>
                   <Trash2 className="size-3.5" />
                 </IconButton>
               </div>
@@ -163,16 +169,16 @@ export function WsEditor({ tab }: { tab: RequestTabT }) {
         {section === 'headers' && <KeyValueTable rows={tab.draft.request?.header ?? []} known={known} onChange={(rows) => update((d) => void ((d.request ??= {}).header = rows))} />}
         {section === 'settings' && (
           <div className="grid max-w-lg gap-3 p-4">
-            <Field label="Subprotocols" hint="Comma separated, sent as Sec-WebSocket-Protocol">
+            <Field label="Subprotocols" hint={t('Comma separated, sent as Sec-WebSocket-Protocol')}>
               <Input value={e.ws?.protocols ?? ''} onChange={(ev) => update((d) => void ((d['x-curlstudio'] ??= { kind: 'ws' }).ws = { ...(d['x-curlstudio']!.ws ?? {}), protocols: ev.target.value }))} />
             </Field>
             <Checkbox
               checked={tab.draft.protocolProfileBehavior?.strictSSL !== false}
               onChange={(v) => update((d) => void (d.protocolProfileBehavior = { ...(d.protocolProfileBehavior ?? {}), strictSSL: v }))}
-              label="Verify TLS certificates"
+              label={t('Verify TLS certificates')}
             />
             <Button size="sm" className="w-32" disabled={live?.state !== 'open'} onClick={() => useSessions.getState().send(tab.id, { op: 'ping' })}>
-              Send ping
+              {t('Send ping')}
             </Button>
           </div>
         )}
@@ -201,10 +207,10 @@ export function SseEditor({ tab }: { tab: RequestTabT }) {
   const top = (
     <div className="flex h-full min-h-0 flex-col">
       <ConnectBar tab={tab} placeholder="https://example.com/events" onConnect={connect} />
-      <div className="px-3 text-[11px] font-semibold text-muted-foreground uppercase">Headers</div>
+      <div className="px-3 text-[11px] font-semibold text-muted-foreground uppercase">{t('Headers')}</div>
       <div className="min-h-0 flex-1 overflow-auto">
         <KeyValueTable rows={tab.draft.request?.header ?? []} known={known} onChange={(rows) => update((d) => void ((d.request ??= {}).header = rows))} />
-        <p className="px-3 text-[11.5px] text-muted-foreground">Auth from the request, folder or collection applies. <code>Accept: text/event-stream</code> is added automatically.</p>
+        <p className="px-3 text-[11.5px] text-muted-foreground">{t('Auth from the request, folder or collection applies.')} <code>Accept: text/event-stream</code> {t('is added automatically.')}</p>
       </div>
     </div>
   );
@@ -259,7 +265,7 @@ export function MqttEditor({ tab }: { tab: RequestTabT }) {
         items={[
           { id: 'publish', label: 'Publish' },
           { id: 'subscriptions', label: 'Subscriptions', badge: topics.length || undefined },
-          { id: 'connection', label: 'Connection' },
+          { id: 'connection', label: t('Connection') },
         ]}
       />
       <div className="min-h-0 flex-1 overflow-auto">
@@ -285,46 +291,46 @@ export function MqttEditor({ tab }: { tab: RequestTabT }) {
         )}
         {section === 'subscriptions' && (
           <div className="space-y-1 p-3">
-            {topics.map((t, i) => (
+            {topics.map((tp, i) => (
               <div key={i} className="flex items-center gap-2">
-                <Input value={t.topic} onChange={(e) => setM({ topics: topics.map((x, j) => (j === i ? { ...x, topic: e.target.value } : x)) })} className="flex-1 font-mono" placeholder="sensors/#" />
-                <Select value={String(t.qos)} onChange={(v) => setM({ topics: topics.map((x, j) => (j === i ? { ...x, qos: Number(v) } : x)) })} options={['0', '1', '2'].map((q) => ({ value: q, label: `QoS ${q}` }))} />
-                <Button size="sm" disabled={!isOpen} onClick={() => useSessions.getState().send(tab.id, { op: 'subscribe', topic: r(t.topic), qos: t.qos })}>
+                <Input value={tp.topic} onChange={(e) => setM({ topics: topics.map((x, j) => (j === i ? { ...x, topic: e.target.value } : x)) })} className="flex-1 font-mono" placeholder="sensors/#" />
+                <Select value={String(tp.qos)} onChange={(v) => setM({ topics: topics.map((x, j) => (j === i ? { ...x, qos: Number(v) } : x)) })} options={['0', '1', '2'].map((q) => ({ value: q, label: `QoS ${q}` }))} />
+                <Button size="sm" disabled={!isOpen} onClick={() => useSessions.getState().send(tab.id, { op: 'subscribe', topic: r(tp.topic), qos: tp.qos })}>
                   Subscribe
                 </Button>
-                <Button size="sm" variant="ghost" disabled={!isOpen} onClick={() => useSessions.getState().send(tab.id, { op: 'unsubscribe', topic: r(t.topic) })}>
+                <Button size="sm" variant="ghost" disabled={!isOpen} onClick={() => useSessions.getState().send(tab.id, { op: 'unsubscribe', topic: r(tp.topic) })}>
                   Unsubscribe
                 </Button>
-                <IconButton label="Remove" onClick={() => setM({ topics: topics.filter((_, j) => j !== i) })}>
+                <IconButton label={t('Remove')} onClick={() => setM({ topics: topics.filter((_, j) => j !== i) })}>
                   <X className="size-3.5" />
                 </IconButton>
               </div>
             ))}
             <Button size="sm" variant="ghost" onClick={() => setM({ topics: [...topics, { topic: '', qos: 0 }] })}>
-              <Plus className="size-3.5" /> Add topic
+              <Plus className="size-3.5" /> {t('Add topic')}
             </Button>
-            <p className="text-[11.5px] text-muted-foreground">Saved topics are subscribed automatically on connect. Wildcards <code>+</code> and <code>#</code> are supported.</p>
+            <p className="text-[11.5px] text-muted-foreground">{rich(t('Saved topics are subscribed automatically on connect. Wildcards {0} and {1} are supported.'), <code>+</code>, <code>#</code>)}</p>
           </div>
         )}
         {section === 'connection' && (
           <div className="grid max-w-2xl grid-cols-2 gap-3 p-4">
-            <Field label="Client ID" hint="Empty = random">
+            <Field label="Client ID" hint={t('Empty = random')}>
               <Input value={m.clientId ?? ''} onChange={(e) => setM({ clientId: e.target.value })} />
             </Field>
             <Field label="Keep alive (s)">
               <Input type="number" value={String(m.keepAlive ?? 30)} onChange={(e) => setM({ keepAlive: Number(e.target.value) || 30 })} />
             </Field>
-            <Field label="Username">
+            <Field label={t('Username')}>
               <Input value={m.username ?? ''} onChange={(e) => setM({ username: e.target.value })} />
             </Field>
-            <Field label="Password">
+            <Field label={t('Password')}>
               <Input type="password" value={m.password ?? ''} onChange={(e) => setM({ password: e.target.value })} />
             </Field>
             <Checkbox checked={m.cleanSession !== false} onChange={(v) => setM({ cleanSession: v })} label="Clean session" />
             <Checkbox
               checked={tab.draft.protocolProfileBehavior?.strictSSL !== false}
               onChange={(v) => update((d) => void (d.protocolProfileBehavior = { ...(d.protocolProfileBehavior ?? {}), strictSSL: v }))}
-              label="Verify TLS (mqtts://)"
+              label={t('Verify TLS (mqtts://)')}
             />
             <div className="col-span-2 mt-2 text-[12px] font-semibold">Last Will</div>
             <Field label="Topic">
@@ -374,7 +380,7 @@ export function GrpcEditor({ tab }: { tab: RequestTabT }) {
       setSrc(s);
       const all = s.services.flatMap((x) => x.methods);
       if (!g.method && all[0]) setG({ method: all[0].path, message: JSON.stringify(all[0].template, null, 2) });
-      toast('success', `${all.length} methods loaded`);
+      toast('success', t('{n} methods loaded', { n: all.length }));
       return s;
     } catch (e) {
       toast('error', errText(e));
@@ -428,7 +434,7 @@ export function GrpcEditor({ tab }: { tab: RequestTabT }) {
           }}
           className="h-9 min-w-0 flex-[2] rounded-md border border-border bg-background px-2 font-mono text-[12px] outline-none"
         >
-          <option value="">{methods.length ? 'Select a method' : 'Load services first →'}</option>
+          <option value="">{methods.length ? t('Select a method') : t('Load services first →')}</option>
           {src?.services.map((s) => (
             <optgroup key={s.name} label={s.name}>
               {s.methods.map((m) => (
@@ -440,16 +446,16 @@ export function GrpcEditor({ tab }: { tab: RequestTabT }) {
           ))}
           {!src && g.method && <option value={g.method}>{g.method}</option>}
         </select>
-        <Button className="h-9" onClick={load} disabled={busy} title="Load services (reflection or .proto)">
+        <Button className="h-9" onClick={load} disabled={busy} title={t('Load services (reflection or .proto)')}>
           {busy ? <Spinner /> : <RefreshCw className="size-4" />}
         </Button>
         {live?.state === 'open' || live?.state === 'connecting' ? (
           <Button className="h-9 w-28" onClick={() => useSessions.getState().close(tab.id)}>
-            <X className="size-4" /> Cancel
+            <X className="size-4" /> {t('Cancel')}
           </Button>
         ) : (
           <Button variant="primary" className="h-9 w-28" onClick={invoke} disabled={busy}>
-            <Send className="size-4" /> Invoke
+            <Send className="size-4" /> {t('Invoke')}
           </Button>
         )}
       </div>
@@ -457,9 +463,9 @@ export function GrpcEditor({ tab }: { tab: RequestTabT }) {
         value={section}
         onChange={setSection}
         items={[
-          { id: 'message', label: 'Message' },
+          { id: 'message', label: t('Message') },
           { id: 'metadata', label: 'Metadata', badge: (tab.draft.request?.header ?? []).length || undefined },
-          { id: 'definition', label: 'Service definition' },
+          { id: 'definition', label: t('Service definition') },
         ]}
         right={method && <span className="font-mono text-[11px] text-muted-foreground">{method.inputType} → {method.outputType}</span>}
       />
@@ -469,27 +475,27 @@ export function GrpcEditor({ tab }: { tab: RequestTabT }) {
             <CodeEditor value={g.message ?? '{}'} onChange={(v) => setG({ message: v })} language="json" variables={known} className="min-h-0 flex-1" onRun={invoke} />
             {streamingClient && (
               <div className="flex shrink-0 items-center gap-2 border-t border-border p-2 text-[12px]">
-                <span className="text-muted-foreground">Client streaming: Invoke sends the editor content (a JSON array = several messages) and keeps the stream open.</span>
+                <span className="text-muted-foreground">{t('Client streaming: Invoke sends the editor content (a JSON array = several messages) and keeps the stream open.')}</span>
                 <div className="flex-1" />
                 <Button size="sm" disabled={live?.state !== 'open'} onClick={() => useSessions.getState().send(tab.id, { op: 'send', data: r(g.message ?? '{}') })}>
-                  Send message
+                  {t('Send message')}
                 </Button>
                 <Button size="sm" disabled={live?.state !== 'open'} onClick={() => useSessions.getState().send(tab.id, { op: 'end' })}>
-                  End stream
+                  {t('End stream')}
                 </Button>
               </div>
             )}
           </div>
         )}
-        {section === 'metadata' && <KeyValueTable rows={tab.draft.request?.header ?? []} known={known} onChange={(rows) => update((d) => void ((d.request ??= {}).header = rows))} keyPlaceholder="Key (use -bin suffix for binary)" />}
+        {section === 'metadata' && <KeyValueTable rows={tab.draft.request?.header ?? []} known={known} onChange={(rows) => update((d) => void ((d.request ??= {}).header = rows))} keyPlaceholder={t('Key (use -bin suffix for binary)')} />}
         {section === 'definition' && (
           <div className="grid max-w-2xl gap-3 p-4">
             <div className="flex gap-4">
               <label className="flex items-center gap-1.5">
-                <input type="radio" checked={g.useReflection !== false} onChange={() => setG({ useReflection: true })} className="accent-[var(--accent)]" /> Server reflection
+                <input type="radio" checked={g.useReflection !== false} onChange={() => setG({ useReflection: true })} className="accent-[var(--accent)]" /> {t('Server reflection')}
               </label>
               <label className="flex items-center gap-1.5">
-                <input type="radio" checked={g.useReflection === false} onChange={() => setG({ useReflection: false })} className="accent-[var(--accent)]" /> .proto files
+                <input type="radio" checked={g.useReflection === false} onChange={() => setG({ useReflection: false })} className="accent-[var(--accent)]" /> {t('.proto files')}
               </label>
             </div>
             {g.useReflection === false && (
@@ -498,7 +504,7 @@ export function GrpcEditor({ tab }: { tab: RequestTabT }) {
                   {(g.protoFiles ?? []).map((f, i) => (
                     <div key={i} className="flex items-center gap-2 font-mono text-[12px]">
                       <span className="min-w-0 flex-1 truncate">{f}</span>
-                      <IconButton label="Remove" onClick={() => setG({ protoFiles: (g.protoFiles ?? []).filter((_, j) => j !== i) })}>
+                      <IconButton label={t('Remove')} onClick={() => setG({ protoFiles: (g.protoFiles ?? []).filter((_, j) => j !== i) })}>
                         <X className="size-3.5" />
                       </IconButton>
                     </div>
@@ -508,28 +514,28 @@ export function GrpcEditor({ tab }: { tab: RequestTabT }) {
                   <Button
                     size="sm"
                     onClick={async () => {
-                      const p = await pickFiles({ title: 'Select .proto files', multiple: true, filters: [{ name: 'Protocol Buffers', extensions: ['proto'] }] });
+                      const p = await pickFiles({ title: t('Select .proto files'), multiple: true, filters: [{ name: 'Protocol Buffers', extensions: ['proto'] }] });
                       if (p.length) setG({ protoFiles: [...new Set([...(g.protoFiles ?? []), ...p])] });
                     }}
                   >
-                    <FileUp className="size-3.5" /> Add .proto files
+                    <FileUp className="size-3.5" /> {t('Add .proto files')}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={async () => {
-                      const p = await pickFiles({ title: 'Import path (include directory)', directory: true });
+                      const p = await pickFiles({ title: t('Import path (include directory)'), directory: true });
                       if (p.length) setG({ includes: [...new Set([...(g.includes ?? []), ...p])] });
                     }}
                   >
-                    Add import path
+                    {t('Add import path')}
                   </Button>
                 </div>
-                {(g.includes ?? []).length > 0 && <div className="font-mono text-[11.5px] text-muted-foreground">Import paths: {(g.includes ?? []).join('; ')}</div>}
+                {(g.includes ?? []).length > 0 && <div className="font-mono text-[11.5px] text-muted-foreground">{t('Import paths: {paths}', { paths: (g.includes ?? []).join('; ') })}</div>}
               </>
             )}
             <p className="text-[11.5px] text-muted-foreground">
-              Compiled in-process (no <code>protoc</code> needed); well-known types are built in. Use <code>http://</code> / plain host for plaintext and enable TLS for secure endpoints.
+              {rich(t('Compiled in-process (no {0} needed); well-known types are built in. Use {1} / plain host for plaintext and enable TLS for secure endpoints.'), <code>protoc</code>, <code>http://</code>)}
             </p>
             {method && (
               <div className={cn('rounded-md border border-border p-2 font-mono text-[12px]')}>

@@ -7,6 +7,7 @@ import { Button, cn, IconButton, Select, Spinner } from '@/components/ui';
 import { graphqlExtension } from '@/components/graphqlExt';
 import { prettyJson, prettyXml } from '@/lib/format';
 import { type GqlField, type GqlSchema, type GqlType, type TypeRef, typeName } from '@/lib/graphqlAssist';
+import { plural, t } from '@/lib/i18n';
 import { pickFiles } from '@/lib/native';
 import type { PmBody, RequestSpec } from '@/lib/types';
 import { api } from '@/lib/ipc';
@@ -67,10 +68,10 @@ function GraphQLEditor({
       spec.headers = [...spec.headers.filter((h) => h.key.toLowerCase() !== 'content-type'), { key: 'Content-Type', value: 'application/json' }];
       const res = await api.send(spec);
       const json = JSON.parse(res.body) as { data?: { __schema: { types: GqlType[]; queryType?: { name: string }; mutationType?: { name: string }; subscriptionType?: { name: string } } }; errors?: unknown };
-      if (!json.data) throw new Error(`Introspection failed: ${res.body.slice(0, 200)}`);
+      if (!json.data) throw new Error(t('Introspection failed: {body}', { body: res.body.slice(0, 200) }));
       const s = json.data.__schema;
       setSchema({ types: s.types, query: s.queryType?.name, mutation: s.mutationType?.name, subscription: s.subscriptionType?.name });
-      toast('success', `Schema loaded: ${s.types.filter((t) => !t.name.startsWith('__')).length} types`);
+      toast('success', t('Schema loaded: {n} types', { n: s.types.filter((x) => !x.name.startsWith('__')).length }));
     } catch (e) {
       toast('error', errText(e));
     } finally {
@@ -99,27 +100,27 @@ function GraphQLEditor({
           Query
           <div className="flex-1" />
           <Button size="sm" variant="ghost" onClick={fetchSchema} disabled={busy}>
-            {busy ? <Spinner className="size-3" /> : <RefreshCw className="size-3" />} Fetch schema
+            {busy ? <Spinner className="size-3" /> : <RefreshCw className="size-3" />} {t('Fetch schema')}
           </Button>
         </div>
         <CodeEditor value={g.query ?? ''} onChange={(v) => onChange({ ...body, mode: 'graphql', graphql: { ...g, query: v } })} variables={known} className="min-h-0 flex-1" language="text" placeholder="query { ... }" extensions={gqlExt} />
         <div className="flex h-6 shrink-0 items-center gap-1.5 border-t border-border px-2 text-[11.5px] text-muted-foreground">
           {!schema ? (
-            'Fetch the schema for field completion (Ctrl+Space) and error checking.'
+            t('Fetch the schema for field completion (Ctrl+Space) and error checking.')
           ) : problems.n ? (
             <span className="flex min-w-0 items-center gap-1.5 text-danger" title={problems.first}>
               <CircleAlert className="size-3.5 shrink-0" />
               <span className="truncate">
-                {problems.n} problem{problems.n > 1 ? 's' : ''}: {problems.first}
+                {t(plural(problems.n, '{n} problem: {first}', '{n} problems: {first}'), { n: problems.n, first: problems.first ?? '' })}
               </span>
             </span>
           ) : (
-            <span className="text-success">✓ Query matches the schema</span>
+            <span className="text-success">{t('✓ Query matches the schema')}</span>
           )}
         </div>
       </div>
       <div className="flex min-w-0 flex-[2] flex-col">
-        <div className="flex h-8 items-center px-2 text-[11px] font-semibold text-muted-foreground uppercase">GraphQL Variables</div>
+        <div className="flex h-8 items-center px-2 text-[11px] font-semibold text-muted-foreground uppercase">{t('GraphQL Variables')}</div>
         <CodeEditor value={g.variables ?? ''} onChange={(v) => onChange({ ...body, mode: 'graphql', graphql: { ...g, variables: v } })} language="json" variables={known} className={cn('min-h-0', schema ? 'flex-1' : 'flex-1')} placeholder='{ "id": 1 }' />
         {schema && (
           <div className="h-1/2 overflow-auto border-t border-border p-1 text-[12px]">
@@ -187,14 +188,14 @@ export function BodyEditor({
               className="h-6 text-[12px] text-accent"
             />
             <div className="flex-1" />
-            <IconButton label="Beautify" onClick={beautify}>
+            <IconButton label={t('Beautify')} onClick={beautify}>
               <Wand2 className="size-3.5" />
             </IconButton>
           </>
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
-        {mode === 'none' && <div className="p-6 text-center text-muted-foreground">This request does not have a body</div>}
+        {mode === 'none' && <div className="p-6 text-center text-muted-foreground">{t('This request does not have a body')}</div>}
         {mode === 'raw' && <CodeEditor value={b.raw ?? ''} onChange={(v) => onChange({ ...b, raw: v })} language={lang} variables={known} className="h-full" />}
         {mode === 'urlencoded' && <KeyValueTable rows={b.urlencoded ?? []} onChange={(rows) => onChange({ ...b, urlencoded: rows })} known={known} />}
         {mode === 'formdata' && <KeyValueTable rows={b.formdata ?? []} onChange={(rows) => onChange({ ...b, formdata: rows })} known={known} files />}
@@ -202,13 +203,13 @@ export function BodyEditor({
           <div className="flex items-center gap-3 p-4">
             <Button
               onClick={async () => {
-                const p = await pickFiles({ title: 'Select a file to send' });
+                const p = await pickFiles({ title: t('Select a file to send') });
                 if (p[0]) onChange({ ...b, file: { src: p[0] } });
               }}
             >
-              <FileUp className="size-4" /> Select file
+              <FileUp className="size-4" /> {t('Select file')}
             </Button>
-            <span className="font-mono text-[12px] text-muted-foreground">{b.file?.src || 'No file selected'}</span>
+            <span className="font-mono text-[12px] text-muted-foreground">{b.file?.src || t('No file selected')}</span>
           </div>
         )}
         {mode === 'graphql' && <GraphQLEditor body={b} onChange={onChange} known={known} buildIntrospection={buildIntrospection} />}

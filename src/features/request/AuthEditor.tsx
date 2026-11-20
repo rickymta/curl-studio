@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { VarInput } from '@/components/KeyValueTable';
 import { Button, Field, Select, Spinner } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { api } from '@/lib/ipc';
 import { authAttrs, setAuthAttr } from '@/lib/postman';
 import type { PmAuth } from '@/lib/types';
@@ -32,7 +33,7 @@ function Row({ label, value, onChange, known, secret, placeholder }: { label: st
         )}
         {secret && (
           <button type="button" onClick={() => setShow(!show)} className="px-2 text-[11px] text-muted-foreground hover:text-foreground">
-            {show ? 'Hide' : 'Show'}
+            {show ? t('Hide') : t('Show')}
           </button>
         )}
       </div>
@@ -58,10 +59,10 @@ export function AuthEditor({
   const type = auth === null ? 'noauth' : (auth?.type ?? (allowInherit ? 'inherit' : 'noauth'));
   const a = authAttrs(auth);
   const set = (k: string, v: string) => onChange(setAuthAttr(auth ?? { type }, k, v));
-  const setType = (t: string) => {
-    if (t === 'inherit') onChange(undefined);
-    else if (t === 'noauth') onChange({ type: 'noauth' });
-    else onChange({ type: t, [t]: [] });
+  const setType = (ty: string) => {
+    if (ty === 'inherit') onChange(undefined);
+    else if (ty === 'noauth') onChange({ type: 'noauth' });
+    else onChange({ type: ty, [ty]: [] });
   };
   const [busy, setBusy] = useState(false);
 
@@ -92,14 +93,14 @@ export function AuthEditor({
         options: { timeoutMs: s.timeoutMs, followRedirects: true, maxRedirects: 10, verifyTls: s.verifyTls, proxy: s.proxy, http1Only: false, cookies: false, maxBodyBytes: 1 << 20 },
       });
       const json = JSON.parse(res.body) as Record<string, unknown>;
-      if (!json.access_token) throw new Error(`No access_token in response (${res.status}): ${res.body.slice(0, 200)}`);
+      if (!json.access_token) throw new Error(t('No access_token in response ({status}): {body}', { status: res.status, body: res.body.slice(0, 200) }));
       let next = setAuthAttr(auth ?? { type: 'oauth2' }, 'accessToken', String(json.access_token));
       if (json.refresh_token) next = setAuthAttr(next, 'refreshToken', String(json.refresh_token));
       if (json.token_type) next = setAuthAttr(next, 'tokenType', String(json.token_type));
       onChange(next);
-      toast('success', 'Access token received');
+      toast('success', t('Access token received'));
     } catch (e) {
-      toast('error', `Token request failed: ${errText(e)}`);
+      toast('error', t('Token request failed: {error}', { error: errText(e) }));
     } finally {
       setBusy(false);
     }
@@ -108,37 +109,37 @@ export function AuthEditor({
   return (
     <div className="flex gap-6 p-3">
       <div className="w-60 shrink-0 space-y-2">
-        <Field label="Type">
-          <Select value={type} onChange={setType} options={allowInherit ? TYPES : TYPES.filter((t) => t.value !== 'inherit')} />
+        <Field label={t('Type')}>
+          <Select value={type} onChange={setType} options={(allowInherit ? TYPES : TYPES.filter((o) => o.value !== 'inherit')).map((o) => (o.value === 'inherit' || o.value === 'noauth' ? { ...o, label: t(o.label) } : o))} />
         </Field>
         <p className="text-[11.5px] text-muted-foreground">
-          {type === 'inherit' && `Uses the auth of ${inheritedFrom ?? 'the parent folder or collection'}.`}
-          {type === 'noauth' && 'This request does not use any authorization.'}
-          {type === 'digest' && 'Digest challenge/response is handled automatically (MD5, SHA-256, -sess, qop=auth/auth-int).'}
-          {type === 'awsv4' && 'Signed with AWS Signature Version 4 right before sending (covers the final body).'}
-          {type === 'oauth2' && 'Adds the access token to the request. Use "Get New Access Token" for client credentials or password grants.'}
-          {type === 'apikey' && 'Sends the key as a header or query parameter.'}
+          {type === 'inherit' && t('Uses the auth of {source}.', { source: inheritedFrom ?? t('the parent folder or collection') })}
+          {type === 'noauth' && t('This request does not use any authorization.')}
+          {type === 'digest' && t('Digest challenge/response is handled automatically (MD5, SHA-256, -sess, qop=auth/auth-int).')}
+          {type === 'awsv4' && t('Signed with AWS Signature Version 4 right before sending (covers the final body).')}
+          {type === 'oauth2' && t('Adds the access token to the request. Use "Get New Access Token" for client credentials or password grants.')}
+          {type === 'apikey' && t('Sends the key as a header or query parameter.')}
         </p>
       </div>
       <div className="grid max-w-xl flex-1 grid-cols-1 gap-3">
         {type === 'basic' && (
           <>
-            <Row label="Username" value={a.username ?? ''} onChange={(v) => set('username', v)} known={known} />
-            <Row label="Password" value={a.password ?? ''} onChange={(v) => set('password', v)} known={known} secret />
+            <Row label={t('Username')} value={a.username ?? ''} onChange={(v) => set('username', v)} known={known} />
+            <Row label={t('Password')} value={a.password ?? ''} onChange={(v) => set('password', v)} known={known} secret />
           </>
         )}
         {type === 'digest' && (
           <>
-            <Row label="Username" value={a.username ?? ''} onChange={(v) => set('username', v)} known={known} />
-            <Row label="Password" value={a.password ?? ''} onChange={(v) => set('password', v)} known={known} secret />
+            <Row label={t('Username')} value={a.username ?? ''} onChange={(v) => set('username', v)} known={known} />
+            <Row label={t('Password')} value={a.password ?? ''} onChange={(v) => set('password', v)} known={known} secret />
           </>
         )}
         {type === 'bearer' && <Row label="Token" value={a.token ?? ''} onChange={(v) => set('token', v)} known={known} secret />}
         {type === 'apikey' && (
           <>
-            <Row label="Key" value={a.key ?? ''} onChange={(v) => set('key', v)} known={known} placeholder="x-api-key" />
-            <Row label="Value" value={a.value ?? ''} onChange={(v) => set('value', v)} known={known} secret />
-            <Field label="Add to">
+            <Row label={t('Key')} value={a.key ?? ''} onChange={(v) => set('key', v)} known={known} placeholder="x-api-key" />
+            <Row label={t('Value')} value={a.value ?? ''} onChange={(v) => set('value', v)} known={known} secret />
+            <Field label={t('Add to')}>
               <Select value={a.in || 'header'} onChange={(v) => set('in', v)} options={[{ value: 'header', label: 'Header' }, { value: 'query', label: 'Query Params' }]} />
             </Field>
           </>
@@ -148,7 +149,7 @@ export function AuthEditor({
             <Row label="Access Key" value={a.accessKey ?? ''} onChange={(v) => set('accessKey', v)} known={known} />
             <Row label="Secret Key" value={a.secretKey ?? ''} onChange={(v) => set('secretKey', v)} known={known} secret />
             <Row label="AWS Region" value={a.region ?? ''} onChange={(v) => set('region', v)} known={known} placeholder="us-east-1" />
-            <Row label="Service Name" value={a.service ?? ''} onChange={(v) => set('service', v)} known={known} placeholder="execute-api" />
+            <Row label={t('Service Name')} value={a.service ?? ''} onChange={(v) => set('service', v)} known={known} placeholder="execute-api" />
             <Row label="Session Token" value={a.sessionToken ?? ''} onChange={(v) => set('sessionToken', v)} known={known} secret />
           </>
         )}
@@ -156,13 +157,13 @@ export function AuthEditor({
           <>
             <Row label="Access Token" value={a.accessToken ?? ''} onChange={(v) => set('accessToken', v)} known={known} secret />
             <div className="grid grid-cols-2 gap-3">
-              <Row label="Header Prefix" value={a.headerPrefix ?? 'Bearer'} onChange={(v) => set('headerPrefix', v)} />
-              <Field label="Add token to">
-                <Select value={a.addTokenTo || 'header'} onChange={(v) => set('addTokenTo', v)} options={[{ value: 'header', label: 'Request Headers' }, { value: 'queryParams', label: 'Request URL' }]} />
+              <Row label={t('Header Prefix')} value={a.headerPrefix ?? 'Bearer'} onChange={(v) => set('headerPrefix', v)} />
+              <Field label={t('Add token to')}>
+                <Select value={a.addTokenTo || 'header'} onChange={(v) => set('addTokenTo', v)} options={[{ value: 'header', label: t('Request Headers') }, { value: 'queryParams', label: t('Request URL') }]} />
               </Field>
             </div>
             <div className="mt-2 rounded-md border border-border p-3">
-              <div className="mb-2 text-[12px] font-semibold">Configure New Token</div>
+              <div className="mb-2 text-[12px] font-semibold">{t('Configure New Token')}</div>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Grant Type">
                   <Select
@@ -179,25 +180,25 @@ export function AuthEditor({
                 <Row label="Client Secret" value={a.clientSecret ?? ''} onChange={(v) => set('clientSecret', v)} known={known} secret />
                 {a.grant_type === 'password_credentials' && (
                   <>
-                    <Row label="Username" value={a.username ?? ''} onChange={(v) => set('username', v)} known={known} />
-                    <Row label="Password" value={a.password ?? ''} onChange={(v) => set('password', v)} known={known} secret />
+                    <Row label={t('Username')} value={a.username ?? ''} onChange={(v) => set('username', v)} known={known} />
+                    <Row label={t('Password')} value={a.password ?? ''} onChange={(v) => set('password', v)} known={known} secret />
                   </>
                 )}
                 <Row label="Scope" value={a.scope ?? ''} onChange={(v) => set('scope', v)} known={known} />
                 <Row label="Audience" value={a.audience ?? ''} onChange={(v) => set('audience', v)} known={known} />
-                <Field label="Client Authentication">
+                <Field label={t('Client Authentication')}>
                   <Select
                     value={a.client_authentication || 'header'}
                     onChange={(v) => set('client_authentication', v)}
                     options={[
-                      { value: 'header', label: 'Send as Basic Auth header' },
-                      { value: 'body', label: 'Send client credentials in body' },
+                      { value: 'header', label: t('Send as Basic Auth header') },
+                      { value: 'body', label: t('Send client credentials in body') },
                     ]}
                   />
                 </Field>
               </div>
               <Button variant="primary" className="mt-3" onClick={getToken} disabled={busy || !a.accessTokenUrl}>
-                {busy && <Spinner />} Get New Access Token
+                {busy && <Spinner />} {t('Get New Access Token')}
               </Button>
             </div>
           </>

@@ -1,3 +1,5 @@
+import { t } from './i18n';
+
 export function formatBytes(n: number): string {
   if (!Number.isFinite(n)) return '–';
   if (n < 1024) return `${n} B`;
@@ -38,9 +40,9 @@ export function formatPct(r: number, digits = 2): string {
 
 export function relTime(ts: number): string {
   const d = (Date.now() - ts) / 1000;
-  if (d < 60) return 'just now';
-  if (d < 3600) return `${Math.floor(d / 60)}m ago`;
-  if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
+  if (d < 60) return t('just now');
+  if (d < 3600) return t('{n}m ago', { n: Math.floor(d / 60) });
+  if (d < 86400) return t('{n}h ago', { n: Math.floor(d / 3600) });
   return new Date(ts).toLocaleDateString();
 }
 
@@ -80,8 +82,8 @@ export function languageOf(contentType: string, body: string): 'json' | 'xml' | 
   if (ct.includes('html')) return 'html';
   if (ct.includes('xml')) return 'xml';
   if (ct.includes('javascript')) return 'javascript';
-  const t = body.trimStart();
-  if (t.startsWith('{') || t.startsWith('[')) {
+  const head = body.trimStart();
+  if (head.startsWith('{') || head.startsWith('[')) {
     try {
       JSON.parse(body);
       return 'json';
@@ -89,7 +91,7 @@ export function languageOf(contentType: string, body: string): 'json' | 'xml' | 
       /* not json */
     }
   }
-  if (t.startsWith('<')) return t.toLowerCase().startsWith('<!doctype html') || t.toLowerCase().startsWith('<html') ? 'html' : 'xml';
+  if (head.startsWith('<')) return head.toLowerCase().startsWith('<!doctype html') || head.toLowerCase().startsWith('<html') ? 'html' : 'xml';
   return 'text';
 }
 

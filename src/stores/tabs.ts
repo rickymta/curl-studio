@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { t as tr } from '@/lib/i18n';
 import { clone, findItem, newRequest, uid } from '@/lib/postman';
 import type { PmItem, ResponseData, RequestSpec, TestResult } from '@/lib/types';
 
@@ -225,7 +226,7 @@ export const useTabs = create<State>((set, get) => ({
       kind: 'request',
       collectionId: null,
       itemId: null,
-      draft: item ?? newRequest('Untitled Request'),
+      draft: item ?? newRequest(tr('Untitled Request')),
       dirty: false,
     });
   },

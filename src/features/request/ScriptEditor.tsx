@@ -1,4 +1,5 @@
 import { CodeEditor } from '@/components/CodeEditor';
+import { t } from '@/lib/i18n';
 
 const SNIPPETS: { label: string; code: string; listen?: 'prerequest' | 'test' }[] = [
   { label: 'Status code is 200', listen: 'test', code: 'pm.test("Status code is 200", function () {\n    pm.response.to.have.status(200);\n});' },
@@ -44,17 +45,17 @@ export function ScriptEditor({
         scripting
         variables={known}
         className="min-w-0 flex-1"
-        placeholder={listen === 'test' ? '// Tests run after the response arrives. Try a snippet →' : '// Runs before the request is sent.'}
+        placeholder={listen === 'test' ? t('// Tests run after the response arrives. Try a snippet →') : t('// Runs before the request is sent.')}
       />
       <div className="w-56 shrink-0 overflow-auto border-l border-border p-2">
-        <div className="mb-1 text-[11px] font-semibold text-muted-foreground uppercase">Snippets</div>
+        <div className="mb-1 text-[11px] font-semibold text-muted-foreground uppercase">{t('Snippets')}</div>
         {SNIPPETS.filter((s) => !s.listen || s.listen === listen).map((s) => (
-          <button key={s.label} type="button" onClick={() => insert(s.code)} className="block w-full truncate rounded px-1.5 py-1 text-left text-[12px] text-accent hover:bg-surface-hover" title={s.label}>
-            {s.label}
+          <button key={s.label} type="button" onClick={() => insert(s.code)} className="block w-full truncate rounded px-1.5 py-1 text-left text-[12px] text-accent hover:bg-surface-hover" title={t(s.label)}>
+            {t(s.label)}
           </button>
         ))}
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Scripts run in a Postman-compatible sandbox: <code>pm.*</code>, chai, CryptoJS, <code>pm.sendRequest</code>. Collection and folder scripts run first.
+          {t('Scripts run in a Postman-compatible sandbox:')} <code>pm.*</code>, chai, CryptoJS, <code>pm.sendRequest</code>. {t('Collection and folder scripts run first.')}
         </p>
       </div>
     </div>

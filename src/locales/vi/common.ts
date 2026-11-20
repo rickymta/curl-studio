@@ -57,7 +57,7 @@ export const common: Record<string, string> = {
   // ---- Common nouns / labels
   Name: 'Tên',
   Value: 'Giá trị',
-  Key: 'Khoá',
+  Key: 'Key',
   Description: 'Mô tả',
   Type: 'Loại',
   Status: 'Trạng thái',

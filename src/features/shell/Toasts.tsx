@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { type Toast, useUi } from '@/stores/ui';
 
 const TOAST_STYLE = {
@@ -168,7 +169,7 @@ function ToastCard({
           </div>
           <button
             type="button"
-            aria-label="Dismiss"
+            aria-label={t('Dismiss')}
             onClick={onDone}
             className="flex size-6 shrink-0 items-center justify-center self-start rounded text-muted-foreground hover:bg-surface-hover hover:text-foreground"
           >

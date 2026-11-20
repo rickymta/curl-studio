@@ -2,6 +2,7 @@
 import { buildSpec } from '@/lib/build';
 import { toCurl } from '@/lib/curl';
 import { contextFor } from '@/lib/execute';
+import { t } from '@/lib/i18n';
 import { copyText, JSON_FILTER, pickTextFiles, saveText } from '@/lib/native';
 import {
   clone,
@@ -47,7 +48,7 @@ export function makeItem(kind: NewKind, name?: string): PmItem {
       return it;
     }
     default:
-      return newRequest(name ?? 'New Request');
+      return newRequest(name ?? t('New Request'));
   }
 }
 
@@ -72,16 +73,16 @@ export function promptText(title: string, label: string, value: string, onSubmit
 }
 
 /** Ask before a destructive action. `returnTo` reopens the window the question came from. */
-export function confirmAction(title: string, message: string, onConfirm: () => void, danger = true, confirmLabel = 'Delete', returnTo?: Dialog) {
+export function confirmAction(title: string, message: string, onConfirm: () => void, danger = true, confirmLabel = t('Delete'), returnTo?: Dialog) {
   useUi.getState().show({ kind: 'confirm', title, message, onConfirm, danger, confirmLabel, returnTo });
 }
 
 export function addFolder(collectionId: string, parentId: string | null) {
-  promptText('New folder', 'Folder name', 'New Folder', (name) => addItem(collectionId, parentId, newFolder(name), false));
+  promptText(t('New folder'), t('Folder name'), t('New Folder'), (name) => addItem(collectionId, parentId, newFolder(name), false));
 }
 
 export function renameItem(collectionId: string, itemId: string, current: string) {
-  promptText('Rename', 'Name', current, (name) =>
+  promptText(t('Rename'), t('Name'), current, (name) =>
     useWorkspace.getState().updateItem(collectionId, itemId, (it) => {
       it.name = name;
     }),
@@ -93,13 +94,13 @@ export function duplicateItem(collectionId: string, itemId: string) {
     const f = findItem(c.item, itemId);
     if (!f) return;
     const copy = cloneWithNewIds(f.item);
-    copy.name = `${f.item.name} Copy`;
+    copy.name = t('{name} Copy', { name: f.item.name });
     f.siblings.splice(f.index + 1, 0, copy);
   });
 }
 
 export function deleteItem(collectionId: string, itemId: string, name: string) {
-  confirmAction('Delete', `Delete "${name}"? This cannot be undone.`, () =>
+  confirmAction(t('Delete'), t('Delete "{name}"? This cannot be undone.', { name }), () =>
     useWorkspace.getState().updateCollection(collectionId, (c) => {
       const f = findItem(c.item, itemId);
       if (f) f.siblings.splice(f.index, 1);
@@ -159,18 +160,18 @@ export function importJsonText(text: string): string[] {
   if (isCurl(text)) {
     const item = parseCurl(text);
     useTabs.getState().openDraft(item);
-    return ['cURL request'];
+    return [t('cURL request')];
   }
   const json = JSON.parse(text);
   const d = detectImport(json);
   switch (d.type) {
     case 'collection':
       ws.addCollection(d.collection);
-      out.push(`Collection "${d.collection.info.name}"`);
+      out.push(t('Collection "{name}"', { name: d.collection.info.name }));
       break;
     case 'environment':
       ws.addEnvironment(d.environment);
-      out.push(`Environment "${d.environment.name}"`);
+      out.push(t('Environment "{name}"', { name: d.environment.name }));
       break;
     case 'globals':
       ws.updateGlobals((g) => {
@@ -180,12 +181,12 @@ export function importJsonText(text: string): string[] {
           else g.values.push(v);
         }
       });
-      out.push(`${d.environment.values.length} global variables`);
+      out.push(t('{n} global variables', { n: d.environment.values.length }));
       break;
     case 'dump':
       for (const c of d.collections) ws.addCollection(c);
       for (const e of d.environments) ws.addEnvironment(e);
-      out.push(`${d.collections.length} collections, ${d.environments.length} environments`);
+      out.push(t('{collections} collections, {environments} environments', { collections: d.collections.length, environments: d.environments.length }));
       break;
   }
   return out;
@@ -194,9 +195,9 @@ export function importJsonText(text: string): string[] {
 export async function importFiles() {
   try {
     const files = await pickTextFiles({
-      title: 'Import Postman collections / environments',
+      title: t('Import Postman collections / environments'),
       multiple: true,
-      filters: [{ name: 'Postman export', extensions: ['json', 'postman_collection', 'postman_environment', 'txt', 'sh'] }],
+      filters: [{ name: t('Postman export'), extensions: ['json', 'postman_collection', 'postman_environment', 'txt', 'sh'] }],
     });
     const done: string[] = [];
     for (const f of files) {
@@ -206,7 +207,7 @@ export async function importFiles() {
         toast('error', `${f.name}: ${errText(e)}`);
       }
     }
-    if (done.length) toast('success', `Imported ${done.join(', ')}`);
+    if (done.length) toast('success', t('Imported {list}', { list: done.join(', ') }));
   } catch (e) {
     toast('error', errText(e));
   }
@@ -217,7 +218,7 @@ export async function exportCollectionFile(id: string, version: '2.1' | '2.0' = 
   if (!c) return;
   const data = version === '2.1' ? exportCollection(c) : exportCollectionV20(c);
   const ok = await saveText(`${slug(c.info.name)}.postman_collection.json`, JSON.stringify(data, null, '\t'), JSON_FILTER);
-  if (ok) toast('success', `Exported "${c.info.name}" (Postman v${version})`);
+  if (ok) toast('success', t('Exported "{name}" (Postman v{version})', { name: c.info.name, version }));
 }
 
 export async function exportEnvironmentFile(id: string) {
@@ -227,7 +228,7 @@ export async function exportEnvironmentFile(id: string) {
   const data = exportEnvironment(env, id === 'globals' ? 'globals' : 'environment');
   const name = id === 'globals' ? 'workspace.postman_globals.json' : `${slug(env.name)}.postman_environment.json`;
   const ok = await saveText(name, JSON.stringify(data, null, '\t'), JSON_FILTER);
-  if (ok) toast('success', `Exported "${env.name}"`);
+  if (ok) toast('success', t('Exported "{name}"', { name: env.name }));
 }
 
 /** Postman-style full data dump (collections + environments + globals). */
@@ -240,7 +241,7 @@ export async function exportEverything() {
     globals: exportEnvironment(ws.globals, 'globals').values,
   };
   const ok = await saveText('curlstudio-backup.postman_dump.json', JSON.stringify(dump, null, '\t'), JSON_FILTER);
-  if (ok) toast('success', 'Workspace exported');
+  if (ok) toast('success', t('Workspace exported'));
 }
 
 export function duplicateCollection(id: string) {
@@ -248,7 +249,7 @@ export function duplicateCollection(id: string) {
   if (!c) return;
   const copy: PmCollection = clone(c);
   copy.info._postman_id = uid();
-  copy.info.name = `${c.info.name} Copy`;
+  copy.info.name = t('{name} Copy', { name: c.info.name });
   copy.item = copy.item.map(cloneWithNewIds);
   useWorkspace.getState().addCollection(copy);
 }
@@ -263,5 +264,5 @@ export async function copyAsCurl(collectionId: string | null, item: PmItem) {
     behavior: item.protocolProfileBehavior,
   });
   await copyText(toCurl(spec));
-  toast('success', 'cURL copied to clipboard');
+  toast('success', t('cURL copied to clipboard'));
 }
