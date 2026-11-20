@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Button, Checkbox, cn, IconButton, Input, Select } from '@/components/ui';
 import { confirmAction, exportEverything } from '@/features/actions';
 import { systemFont } from '@/features/terminal/font';
+import { type Lang, LANGUAGES, useLang, useLangStore } from '@/lib/i18n';
 import { api } from '@/lib/ipc';
 import { pickFiles, revealPath } from '@/lib/native';
 import type { Settings } from '@/lib/types';
@@ -141,9 +142,14 @@ function Brightness({ value, onChange }: { value: number; onChange: (v: number) 
 
 function Appearance() {
   const [s, set] = useSettings();
+  const lang = useLang();
+  const setLang = useLangStore((x) => x.setLang);
   return (
     <>
       <Title>Appearance</Title>
+      <Row label="Language" help="Ngôn ngữ giao diện · Interface language">
+        <Select value={lang} onChange={(v) => setLang(v as Lang)} options={LANGUAGES.map((l) => ({ value: l.id, label: l.native === l.label ? l.native : `${l.native} (${l.label})` }))} className="w-48" />
+      </Row>
       <Row label="Theme" help="System follows the operating system's light/dark setting.">
         <Select
           value={s.theme}

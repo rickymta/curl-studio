@@ -53,6 +53,7 @@ import { GrpcEditor, MqttEditor, SseEditor, WsEditor } from '@/features/protocol
 import { newTab, promptText, type NewKind } from '@/features/actions';
 import { closeAll, closeOthers, closeSaved, closeTab } from '@/features/tabs/close';
 import { VarCollection } from '@/features/request/varScope';
+import { useLang, useLangStore } from '@/lib/i18n';
 import { itemProtocol, methodColor, PROTOCOL_LABEL, uid } from '@/lib/postman';
 import { useConsole } from '@/stores/console';
 import { syncTabsWithWorkspace, type Tab, useTabs } from '@/stores/tabs';
@@ -60,6 +61,7 @@ import { notify, type SidebarView, toast, useUi } from '@/stores/ui';
 import { createCollection, useWorkspace } from '@/stores/workspace';
 import { useRuns } from '@/features/load/runs';
 import { applyBrightness, applyZoom, setZoom, zoomBy } from '@/features/shell/appearance';
+import { LanguagePicker } from '@/features/shell/LanguagePicker';
 import { StatusBar } from '@/features/shell/StatusBar';
 import { Toasts } from '@/features/shell/Toasts';
 import { TerminalPanel } from '@/features/terminal/TerminalPanel';
@@ -605,6 +607,8 @@ function ThemeToggle() {
 
 export function App() {
   const loaded = useWorkspace((s) => s.loaded);
+  const lang = useLang();
+  const langChosen = useLangStore((s) => s.chosen);
   const error = useWorkspace((s) => s.error);
   const theme = useWorkspace((s) => s.settings.theme);
   const zoom = useWorkspace((s) => s.settings.zoom);
@@ -754,8 +758,11 @@ export function App() {
       </div>
     );
   }
+  // First launch: pick a language before anything else.
+  if (!langChosen) return <LanguagePicker />;
   return (
-    <div className="flex h-full flex-col">
+    // Re-keyed on language change so every component re-renders its text.
+    <div key={lang} className="flex h-full flex-col">
       <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-surface px-3">
         <img src="/icon.svg" alt="" className="size-6" />
         <span className="font-semibold">CurlStudio</span>
